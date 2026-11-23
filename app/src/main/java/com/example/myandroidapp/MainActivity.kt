@@ -149,7 +149,7 @@ private fun ClassesApp() {
                     }
                     Spacer(Modifier.height(8.dp))
                     if (visible.isEmpty()) {
-                        Text("No classes match your search.", modifier = Modifier.padding(16.dp))
+                        Text(if (search.isBlank()) "No authorized classes are available yet. Live and recorded lessons will appear here after the backend is configured." else "No classes match your search.", modifier = Modifier.padding(16.dp))
                     } else {
                         LazyColumn(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                             items(visible) { item ->
