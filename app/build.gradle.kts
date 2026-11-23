@@ -5,7 +5,7 @@ plugins {
 }
 
 val configuredApiBaseUrl = providers.gradleProperty("API_BASE_URL")
-    .orElse("https://api.example.invalid/")
+    .orElse("")
     .get()
 
 android {
