@@ -47,6 +47,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.myandroidapp.data.ApiServiceFactory
 import com.example.myandroidapp.data.ClassDto
+import com.example.myandroidapp.data.SubjectDto
+import com.example.myandroidapp.data.ScheduleDto
 import com.example.myandroidapp.player.AuthorizedVideoPlayer
 import com.example.myandroidapp.security.SecureTokenStore
 
@@ -105,9 +107,37 @@ private fun ClassesApp(onLogout: () -> Unit) {
     var notice by remember { mutableStateOf<String?>(null) }
     var liveClasses by remember { mutableStateOf(emptyList<ClassItem>()) }
     var recordedClasses by remember { mutableStateOf(emptyList<ClassItem>()) }
+    var subjectRecords by remember { mutableStateOf(emptyList<SubjectDto>()) }
+    var chapterNames by remember { mutableStateOf(emptyList<String>()) }
+    var scheduleEntries by remember { mutableStateOf(emptyList<ScheduleDto>()) }
     var loading by remember { mutableStateOf(false) }
     var loadError by remember { mutableStateOf<String?>(null) }
     var activeMediaUrl by remember { mutableStateOf<String?>(null) }
+
+    LaunchedEffect(Unit) {
+        try {
+            val api = ApiServiceFactory.learning(context)
+            subjectRecords = api.subjects()
+            scheduleEntries = api.schedule()
+        } catch (error: Exception) {
+            loadError = error.message?.take(180) ?: "Unable to load subjects and schedule."
+        }
+    }
+
+    LaunchedEffect(selectedSubject, subjectRecords) {
+        val selected = subjectRecords.firstOrNull { it.name == selectedSubject }
+        if (selected == null) {
+            chapterNames = emptyList()
+        } else {
+            try {
+                chapterNames = ApiServiceFactory.learning(context)
+                    .chapters(selected.id)
+                    .map { it.name }
+            } catch (_: Exception) {
+                chapterNames = emptyList()
+            }
+        }
+    }
 
     LaunchedEffect(selectedTab) {
         loading = true
@@ -127,7 +157,7 @@ private fun ClassesApp(onLogout: () -> Unit) {
     }
 
     val source = if (selectedTab == ClassTab.LIVE) liveClasses else recordedClasses
-    val subjects = listOf("All") + source.map { it.subject }.filter { it.isNotBlank() }.distinct()
+    val subjectNames = if (subjectRecords.isNotEmpty()) subjectRecords.map { it.name } else source.map { it.subject }.filter { it.isNotBlank() }.distinct()\n    val subjects = listOf("All") + subjectNames.distinct()
     val visible = source.filter {
         (selectedSubject == "All" || it.subject == selectedSubject) &&
             (search.isBlank() || it.title.contains(search, true) ||
@@ -202,6 +232,12 @@ private fun ClassesApp(onLogout: () -> Unit) {
                                     label = { Text(subject) }
                                 )
                             }
+                        }
+                        if (scheduleEntries.isNotEmpty()) {
+                            Text("Schedule loaded: ${scheduleEntries.size} entries", color = Color(0xFF626B7B), fontSize = 12.sp)
+                        }
+                        if (chapterNames.isNotEmpty()) {
+                            Text("Chapters: ${chapterNames.joinToString(" • ")}", color = Color(0xFF626B7B), fontSize = 12.sp)
                         }
                         notice?.let {
                             Spacer(Modifier.height(8.dp))
