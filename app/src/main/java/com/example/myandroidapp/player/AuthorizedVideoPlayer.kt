@@ -18,6 +18,7 @@ fun AuthorizedVideoPlayer(
     mediaUrl: String,
     modifier: Modifier = Modifier
 ) {
+    require(mediaUrl.startsWith("https://")) { "Only HTTPS playback URLs are accepted." }
     val context = LocalContext.current
     val player = androidx.compose.runtime.remember(mediaUrl) {
         ExoPlayer.Builder(context).build().apply {
