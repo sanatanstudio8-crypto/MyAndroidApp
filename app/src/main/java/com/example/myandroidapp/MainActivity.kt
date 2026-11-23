@@ -157,7 +157,8 @@ private fun ClassesApp(onLogout: () -> Unit) {
     }
 
     val source = if (selectedTab == ClassTab.LIVE) liveClasses else recordedClasses
-    val subjectNames = if (subjectRecords.isNotEmpty()) subjectRecords.map { it.name } else source.map { it.subject }.filter { it.isNotBlank() }.distinct()\n    val subjects = listOf("All") + subjectNames.distinct()
+    val subjectNames = if (subjectRecords.isNotEmpty()) subjectRecords.map { it.name } else source.map { it.subject }.filter { it.isNotBlank() }.distinct()
+    val subjects = listOf("All") + subjectNames.distinct()
     val visible = source.filter {
         (selectedSubject == "All" || it.subject == selectedSubject) &&
             (search.isBlank() || it.title.contains(search, true) ||
