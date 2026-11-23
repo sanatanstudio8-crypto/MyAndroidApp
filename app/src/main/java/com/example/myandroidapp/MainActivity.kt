@@ -3,6 +3,7 @@ package com.example.myandroidapp
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -40,8 +41,10 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalUriHandler
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -202,11 +205,17 @@ private fun ClassesApp(onLogout: () -> Unit) {
                         modifier = Modifier.fillMaxWidth().background(Color(0xFF182B55)).padding(horizontal = 20.dp, vertical = 18.dp)
                     ) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
-                            Column(Modifier.weight(1f)) {
-                                Text("MY LEARNING", color = Color(0xFFB9C8F5), fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                            Image(
+                                painter = painterResource(id = R.drawable.rwa_logo),
+                                contentDescription = "बलिदान RWA लोगो",
+                                modifier = Modifier.size(64.dp),
+                                contentScale = ContentScale.Fit
+                            )
+                            Column(Modifier.weight(1f).padding(start = 12.dp)) {
+                                Text("बलिदान RWA", color = Color.White, fontSize = 22.sp, fontWeight = FontWeight.Bold)
                                 Text(
                                     if (selectedTab == ClassTab.LIVE) "Live Classes" else "Recorded Classes",
-                                    color = Color.White, fontSize = 26.sp, fontWeight = FontWeight.Bold
+                                    color = Color(0xFFD9E1F7), fontSize = 15.sp
                                 )
                             }
                             TextButton(onClick = onLogout) { Text("Log out", color = Color.White) }
