@@ -51,12 +51,16 @@ object ApiServiceFactory {
             }
             .build()
 
-        require(BuildConfig.API_BASE_URL.startsWith("https://")) {
-            "Set API_BASE_URL to your HTTPS backend URL in Gradle properties."
+        val apiBaseUrl = BuildConfig.API_BASE_URL.trim()
+        require(apiBaseUrl.isNotBlank()) {
+            "Backend is not configured yet. The app needs the deployed HTTPS API URL."
+        }
+        require(apiBaseUrl.startsWith("https://")) {
+            "The backend URL must use HTTPS."
         }
 
         return Retrofit.Builder()
-            .baseUrl(BuildConfig.API_BASE_URL)
+            .baseUrl(if (apiBaseUrl.endsWith("/")) apiBaseUrl else "$apiBaseUrl/")
             .client(client)
             .addConverterFactory(GsonConverterFactory.create())
             .build()
