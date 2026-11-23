@@ -14,7 +14,8 @@ Native Android learning app built with Kotlin and Jetpack Compose.
 - Media3 player component for HTTPS media URLs issued by an authorized backend.
 - Removed placeholder/sample lectures. Class lists remain empty until real authorized backend data is supplied.
 
-## Not yet connected
+## Backend
+The Node.js API implementation is in [backend/](backend/README.md). It provides account registration/login, JWT authentication, entitlement-checked class lists, subjects, chapters and schedules. Its database starts empty and must be deployed on persistent storage behind HTTPS before the Android app can use it.\n\n## Not yet connected
 - A deployed backend URL and server implementation.
 - RWA API/partnership credentials, written permission and playback authorization.
 - Real class list fetching and end-to-end playback.
