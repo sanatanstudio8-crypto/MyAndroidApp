@@ -34,6 +34,8 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import com.example.myandroidapp.ui.AuthScreen
+import com.example.myandroidapp.security.SecureTokenStore
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -71,7 +73,16 @@ private val recordedClasses = listOf(
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setContent { ClassesApp() }
+        setContent {
+            var authenticated by remember {
+                mutableStateOf(SecureTokenStore(applicationContext).readToken() != null)
+            }
+            if (authenticated) {
+                ClassesApp()
+            } else {
+                AuthScreen(onAuthenticated = { authenticated = true })
+            }
+        }
     }
 }
 
