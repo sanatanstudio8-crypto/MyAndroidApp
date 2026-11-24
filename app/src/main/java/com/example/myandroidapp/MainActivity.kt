@@ -29,6 +29,7 @@ import com.example.myandroidapp.data.ApiServiceFactory
 import com.example.myandroidapp.data.ClassDto
 import com.example.myandroidapp.data.SubjectDto
 import com.example.myandroidapp.player.AuthorizedVideoPlayer
+import kotlinx.coroutines.launch
 
 private enum class ClassTab { LIVE, RECORDED }
 private data class ClassItem(
