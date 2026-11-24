@@ -9,7 +9,7 @@ import rateLimit from "express-rate-limit";
 import jwt from "jsonwebtoken";
 import Database from "better-sqlite3";
 
-const PORT=Number(process.env.PORT||8080), HOST=process.env.HOST||"127.0.0.1";
+const PORT=Number(process.env.PORT||8080), HOST=process.env.HOST||"0.0.0.0";
 const JWT_SECRET=process.env.JWT_SECRET||"";
 if(JWT_SECRET.length<32) throw new Error("JWT_SECRET must be configured with at least 32 characters.");
 const databaseFile=path.resolve(process.env.DATABASE_FILE||"./data/app.sqlite");
