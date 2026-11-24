@@ -35,7 +35,7 @@ const authLimiter=rateLimit({windowMs:15*60*1000,limit:10,standardHeaders:"draft
 function passwordDigest(password,salt=crypto.randomBytes(16).toString("hex")){return {salt,digest:crypto.scryptSync(password,salt,64).toString("hex")};}
 function verifyPassword(password,stored){const [salt,digest]=stored.split(":");if(!salt||!digest)return false;const a=Buffer.from(passwordDigest(password,salt).digest,"hex"),b=Buffer.from(digest,"hex");return a.length===b.length&&crypto.timingSafeEqual(a,b);}
 function issueToken(user){return jwt.sign({sub:user.id,email:user.email},JWT_SECRET,{expiresIn:"30m",issuer:"myandroidapp-api"});}
-function validEmail(value){return typeof value==="string"&&/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(value);}
+function validEmail(value){return typeof value==="string"&&/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);}
 function authResponse(res,user){return res.json({accessToken:issueToken(user),tokenType:"Bearer"});}
 app.get("/health",(_req,res)=>res.json({status:"ok"}));
 app.post("/v1/auth/signup",authLimiter,(req,res)=>{
