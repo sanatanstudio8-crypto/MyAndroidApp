@@ -52,13 +52,16 @@ app.post("/v1/auth/login",authLimiter,(req,res)=>{
 });
 // Public college-demo catalogue: show Free and Premium metadata without account login.
 // Premium media URLs are disclosed only for rows explicitly marked demo_access=1 by an administrator.
-const publicClasses=type=>(_req,res)=>res.json(db.prepare(`
- SELECT c.id,c.title,c.subject,c.teacher,c.description,c.starts_at AS startsAt,c.status,
- CASE WHEN c.visibility='free' OR c.demo_access=1 THEN c.join_url ELSE NULL END AS joinUrl,
- CASE WHEN c.visibility='free' OR c.demo_access=1 THEN c.playback_url ELSE NULL END AS playbackUrl,
- c.visibility,c.demo_access AS demoAccess
- FROM classes c WHERE c.type=? ORDER BY c.starts_at IS NULL,c.starts_at ASC
-`).all(type));
+const publicClasses=type=>(_req,res)=>{
+ const rows=db.prepare(`
+  SELECT c.id,c.title,c.subject,c.teacher,c.description,c.starts_at AS startsAt,c.status,
+  CASE WHEN c.visibility='free' OR c.demo_access=1 THEN c.join_url ELSE NULL END AS joinUrl,
+  CASE WHEN c.visibility='free' OR c.demo_access=1 THEN c.playback_url ELSE NULL END AS playbackUrl,
+  c.visibility,c.demo_access AS demoAccess
+  FROM classes c WHERE c.type=? ORDER BY c.starts_at IS NULL,c.starts_at ASC
+ `).all(type).map(row=>({...row,demoAccess:Boolean(row.demoAccess)}));
+ return res.json(rows);
+};
 app.get("/v1/classes/live",publicClasses("live"));
 app.get("/v1/classes/recorded",publicClasses("recorded"));
 app.get("/v1/subjects",(_req,res)=>res.json(db.prepare("SELECT DISTINCT id,name FROM subjects ORDER BY name").all()));
