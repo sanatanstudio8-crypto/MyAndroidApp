@@ -19,10 +19,15 @@ db.exec(`
 CREATE TABLE IF NOT EXISTS users (id TEXT PRIMARY KEY,name TEXT NOT NULL,email TEXT NOT NULL UNIQUE COLLATE NOCASE,password_hash TEXT NOT NULL,created_at TEXT NOT NULL);
 CREATE TABLE IF NOT EXISTS subjects (id TEXT PRIMARY KEY,name TEXT NOT NULL UNIQUE);
 CREATE TABLE IF NOT EXISTS chapters (id TEXT PRIMARY KEY,subject_id TEXT NOT NULL REFERENCES subjects(id) ON DELETE CASCADE,name TEXT NOT NULL);
-CREATE TABLE IF NOT EXISTS classes (id TEXT PRIMARY KEY,title TEXT NOT NULL,subject TEXT NOT NULL,teacher TEXT NOT NULL,description TEXT,starts_at TEXT,status TEXT NOT NULL,type TEXT NOT NULL CHECK(type IN ('live','recorded')),join_url TEXT,playback_url TEXT,visibility TEXT NOT NULL DEFAULT 'paid' CHECK(visibility IN ('free','paid')),provider TEXT NOT NULL DEFAULT 'first_party',created_at TEXT NOT NULL);
+CREATE TABLE IF NOT EXISTS classes (id TEXT PRIMARY KEY,title TEXT NOT NULL,subject TEXT NOT NULL,teacher TEXT NOT NULL,description TEXT,starts_at TEXT,status TEXT NOT NULL,type TEXT NOT NULL CHECK(type IN ('live','recorded')),join_url TEXT,playback_url TEXT,visibility TEXT NOT NULL DEFAULT 'paid' CHECK(visibility IN ('free','paid')),demo_access INTEGER NOT NULL DEFAULT 0 CHECK(demo_access IN (0,1)),provider TEXT NOT NULL DEFAULT 'first_party',created_at TEXT NOT NULL);
 CREATE TABLE IF NOT EXISTS class_entitlements (user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,class_id TEXT NOT NULL REFERENCES classes(id) ON DELETE CASCADE,PRIMARY KEY(user_id,class_id));
 CREATE TABLE IF NOT EXISTS schedules (id TEXT PRIMARY KEY,class_id TEXT NOT NULL REFERENCES classes(id) ON DELETE CASCADE,starts_at TEXT NOT NULL,ends_at TEXT);
 `);
+// Safe migration for databases created before the Premium Demo flag existed.
+const classColumns=db.prepare("PRAGMA table_info(classes)").all().map(column=>column.name);
+if(!classColumns.includes("demo_access")) {
+  db.exec("ALTER TABLE classes ADD COLUMN demo_access INTEGER NOT NULL DEFAULT 0 CHECK(demo_access IN (0,1))");
+}
 const app=express(); app.disable("x-powered-by"); app.use(helmet()); app.use(express.json({limit:"32kb"}));
 const origins=(process.env.CORS_ORIGINS||"").split(",").map(v=>v.trim()).filter(Boolean);
 app.use(cors({origin(origin,cb){if(!origin||origins.includes(origin)) return cb(null,true); return cb(new Error("Origin is not allowed by CORS."));}}));
@@ -30,7 +35,7 @@ const authLimiter=rateLimit({windowMs:15*60*1000,limit:10,standardHeaders:"draft
 function passwordDigest(password,salt=crypto.randomBytes(16).toString("hex")){return {salt,digest:crypto.scryptSync(password,salt,64).toString("hex")};}
 function verifyPassword(password,stored){const [salt,digest]=stored.split(":");if(!salt||!digest)return false;const a=Buffer.from(passwordDigest(password,salt).digest,"hex"),b=Buffer.from(digest,"hex");return a.length===b.length&&crypto.timingSafeEqual(a,b);}
 function issueToken(user){return jwt.sign({sub:user.id,email:user.email},JWT_SECRET,{expiresIn:"30m",issuer:"myandroidapp-api"});}
-function validEmail(value){return typeof value==="string"&&/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);}
+function validEmail(value){return typeof value==="string"&&/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(value);}
 function authResponse(res,user){return res.json({accessToken:issueToken(user),tokenType:"Bearer"});}
 app.get("/health",(_req,res)=>res.json({status:"ok"}));
 app.post("/v1/auth/signup",authLimiter,(req,res)=>{
@@ -45,12 +50,19 @@ app.post("/v1/auth/login",authLimiter,(req,res)=>{
  const user=db.prepare("SELECT id,email,password_hash FROM users WHERE email=? COLLATE NOCASE").get(email.trim());
  if(!user||!verifyPassword(password,user.password_hash))return res.status(401).json({error:"Email or password is incorrect."});return authResponse(res,user);
 });
-// Public catalogue returns only explicitly free classes. Paid classes and entitlements remain protected.
-const publicClasses=type=>(_req,res)=>res.json(db.prepare(`SELECT c.id,c.title,c.subject,c.teacher,c.description,c.starts_at AS startsAt,c.status,c.join_url AS joinUrl,c.playback_url AS playbackUrl FROM classes c WHERE c.type=? AND c.visibility='free' ORDER BY c.starts_at IS NULL,c.starts_at ASC`).all(type));
+// Public college-demo catalogue: show Free and Premium metadata without account login.
+// Premium media URLs are disclosed only for rows explicitly marked demo_access=1 by an administrator.
+const publicClasses=type=>(_req,res)=>res.json(db.prepare(`
+ SELECT c.id,c.title,c.subject,c.teacher,c.description,c.starts_at AS startsAt,c.status,
+ CASE WHEN c.visibility='free' OR c.demo_access=1 THEN c.join_url ELSE NULL END AS joinUrl,
+ CASE WHEN c.visibility='free' OR c.demo_access=1 THEN c.playback_url ELSE NULL END AS playbackUrl,
+ c.visibility,c.demo_access AS demoAccess
+ FROM classes c WHERE c.type=? ORDER BY c.starts_at IS NULL,c.starts_at ASC
+`).all(type));
 app.get("/v1/classes/live",publicClasses("live"));
 app.get("/v1/classes/recorded",publicClasses("recorded"));
-app.get("/v1/subjects",(_req,res)=>res.json(db.prepare(`SELECT DISTINCT s.id,s.name FROM subjects s WHERE EXISTS(SELECT 1 FROM classes c WHERE c.visibility='free' AND c.subject=s.name) ORDER BY s.name`).all()));
-app.get("/v1/subjects/:subjectId/chapters",(req,res)=>res.json(db.prepare(`SELECT ch.id,ch.subject_id AS subjectId,ch.name FROM chapters ch JOIN subjects s ON s.id=ch.subject_id WHERE ch.subject_id=? AND EXISTS(SELECT 1 FROM classes c WHERE c.visibility='free' AND c.subject=s.name) ORDER BY ch.name`).all(req.params.subjectId)));
-app.get("/v1/schedule",(_req,res)=>res.json(db.prepare(`SELECT s.id,s.class_id AS classId,s.starts_at AS startsAt,s.ends_at AS endsAt FROM schedules s JOIN classes c ON c.id=s.class_id WHERE c.visibility='free' ORDER BY s.starts_at ASC`).all()));
+app.get("/v1/subjects",(_req,res)=>res.json(db.prepare("SELECT DISTINCT id,name FROM subjects ORDER BY name").all()));
+app.get("/v1/subjects/:subjectId/chapters",(req,res)=>res.json(db.prepare("SELECT id,subject_id AS subjectId,name FROM chapters WHERE subject_id=? ORDER BY name").all(req.params.subjectId)));
+app.get("/v1/schedule",(_req,res)=>res.json(db.prepare("SELECT s.id,s.class_id AS classId,s.starts_at AS startsAt,s.ends_at AS endsAt FROM schedules s JOIN classes c ON c.id=s.class_id ORDER BY s.starts_at ASC").all()));
 app.use((err,_req,res,_next)=>{if(err.message==="Origin is not allowed by CORS.")return res.status(403).json({error:err.message});return res.status(500).json({error:"Unexpected server error."});});
 app.listen(PORT,HOST,()=>console.log(`MyAndroidApp API listening on ${HOST}:${PORT}`));
