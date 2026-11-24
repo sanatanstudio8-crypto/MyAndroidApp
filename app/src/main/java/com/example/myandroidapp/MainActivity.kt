@@ -93,7 +93,13 @@ private fun PublicClassesApp() {
             loading = false
         }
     }
-    LaunchedEffect(Unit) { refresh() }
+    // Refresh the live and recorded catalogues periodically so newly published live classes appear without reopening the app.
+    LaunchedEffect(Unit) {
+        while (true) {
+            refresh()
+            kotlinx.coroutines.delay(30_000)
+        }
+    }
 
     val source = if (tab == ClassTab.LIVE) live else recorded
     val subjectNames = if (subjects.isNotEmpty()) subjects.map { it.name }
