@@ -13,7 +13,9 @@ data class ClassDto(
     val startsAt: String? = null,
     val status: String,
     val joinUrl: String? = null,
-    val playbackUrl: String? = null
+    val playbackUrl: String? = null,
+    val visibility: String = "free",
+    val demoAccess: Boolean = false
 )
 
 data class SubjectDto(val id: String, val name: String)
