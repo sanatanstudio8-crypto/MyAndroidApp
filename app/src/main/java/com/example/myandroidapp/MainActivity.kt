@@ -44,6 +44,7 @@ class MainActivity : ComponentActivity() {
 @Composable
 private fun PublicClassesApp() {
     val context= LocalContext.current
+    val scope=rememberCoroutineScope()
     val uriHandler= LocalUriHandler.current
     var tab by remember { mutableStateOf(ClassTab.LIVE) }
     var search by remember { mutableStateOf("") }
@@ -96,7 +97,7 @@ private fun PublicClassesApp() {
                             Text("बलिदान RWA",color=Color.White,fontSize=22.sp,fontWeight=FontWeight.Bold)
                             Text("Search lectures and batches",color=Color(0xFFD9E1F7))
                         }
-                        TextButton(onClick={ /* refresh on next composition via explicit coroutine below */ }) { Text(" ",color=Color.White) }
+                        TextButton(onClick={ scope.launch { refresh() } }) { Text("Refresh",color=Color.White) }
                     }
                     Column(Modifier.padding(horizontal=16.dp, vertical=12.dp)) {
                         OutlinedTextField(value=search,onValueChange={search=it},modifier=Modifier.fillMaxWidth(),singleLine=true,label={Text("Search lecture, batch, subject or teacher")})
