@@ -4,8 +4,9 @@ plugins {
     id("org.jetbrains.kotlin.plugin.compose")
 }
 
+// The catalogue API is public and uses HTTPS; no build secret is required.
 val configuredApiBaseUrl = providers.gradleProperty("API_BASE_URL")
-    .orElse("")
+    .orElse("https://myandroidapp-api.onrender.com")
     .get()
 
 android {
@@ -24,8 +25,8 @@ android {
         applicationId = "com.example.myandroidapp"
         minSdk = 24
         targetSdk = 35
-        versionCode = 2
-        versionName = "1.1"
+        versionCode = 3
+        versionName = "1.2"
         buildConfigField("String", "API_BASE_URL", "\"$configuredApiBaseUrl\"")
     }
     buildFeatures {
