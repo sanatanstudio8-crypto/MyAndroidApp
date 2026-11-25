@@ -28,12 +28,13 @@ test("PostgreSQL RWA boundary keeps catalogue and entitlement persistence normal
     assert.equal((await catalogue.listLectures(chapterId, "recorded"))[0].id, lectureId);
     assert.equal((await entitlements.check(userId, lectureId)).decision, "unknown");
 
-    await db.run("INSERT INTO entitlement_checks(id,user_id,content_id,decision,checked_at) VALUES(?,?,?,?,?)", `rwa-test-ent-${suffix}`, userId, lectureId, "granted", new Date().toISOString());
+    await db.run("INSERT INTO entitlement_checks(id,user_id,content_id,decision,checked_at) VALUES(?,?,?,?,?)", `rwa-test-ent-${suffix}`, userId, lectureId, "granted", new Date(Date.now() - 120000).toISOString());
     assert.equal((await entitlements.check(userId, lectureId)).decision, "granted");
     await db.run("INSERT INTO entitlement_checks(id,user_id,content_id,decision,checked_at,expires_at) VALUES(?,?,?,?,?,?)", `rwa-test-expired-${suffix}`, userId, lectureId, "granted", new Date().toISOString(), new Date(Date.now() - 60000).toISOString());
     assert.equal((await entitlements.check(userId, lectureId)).decision, "unknown");
   } finally {
     await db.run("DELETE FROM users WHERE id=?", userId);
+    await db.run("DELETE FROM courses WHERE id=?", courseId);
     await db.run("DELETE FROM subjects WHERE id=?", batchId);
     await db.close();
   }
