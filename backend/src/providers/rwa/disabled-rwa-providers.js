@@ -5,36 +5,36 @@ import { ProviderNotConfiguredError } from "../errors.js";
 // official documentation, explicit authorization, and a sandbox are supplied.
 const unavailable = () => { throw new ProviderNotConfiguredError("original-rwa"); };
 export class DisabledRwaIdentityProvider extends RwaIdentityProvider {
-  authenticate() { return unavailable(); }
-  refreshSession() { return unavailable(); }
-  validateSession() { return unavailable(); }
-  revokeSession() { return unavailable(); }
+  async authenticate() { return unavailable(); }
+  async refreshSession() { return unavailable(); }
+  async validateSession() { return unavailable(); }
+  async revokeSession() { return unavailable(); }
 }
 export class DisabledRwaCatalogueProvider extends RwaCatalogueProvider {
-  listBatches() { return unavailable(); }
-  listCourses() { return unavailable(); }
-  getCourse() { return unavailable(); }
-  listChapters() { return unavailable(); }
-  listLectures() { return unavailable(); }
-  listLiveClasses() { return unavailable(); }
+  async listBatches() { return unavailable(); }
+  async listCourses() { return unavailable(); }
+  async getCourse() { return unavailable(); }
+  async listChapters() { return unavailable(); }
+  async listLectures() { return unavailable(); }
+  async listLiveClasses() { return unavailable(); }
 }
 export class DisabledRwaEntitlementProvider extends RwaEntitlementProvider {
-  checkAccountAccess() { return unavailable(); }
-  checkCourseAccess() { return unavailable(); }
-  checkLectureAccess() { return unavailable(); }
-  getSubscriptionStatus() { return unavailable(); }
+  async checkAccountAccess() { return unavailable(); }
+  async checkCourseAccess() { return unavailable(); }
+  async checkLectureAccess() { return unavailable(); }
+  async getSubscriptionStatus() { return unavailable(); }
 }
 export class DisabledRwaPlaybackProvider extends RwaPlaybackProvider {
-  getLectureDetails() { return unavailable(); }
-  createSession() { return unavailable(); }
-  refreshSession() { return unavailable(); }
-  closeSession() { return unavailable(); }
+  async getLectureDetails() { return unavailable(); }
+  async createSession() { return unavailable(); }
+  async refreshSession() { return unavailable(); }
+  async closeSession() { return unavailable(); }
 }
 export class DisabledLiveJoinProvider extends LiveJoinProvider {
-  getLiveClassDetails() { return unavailable(); }
-  createJoinSession() { return unavailable(); }
-  refreshJoinSession() { return unavailable(); }
-  leaveSession() { return unavailable(); }
+  async getLiveClassDetails() { return unavailable(); }
+  async createJoinSession() { return unavailable(); }
+  async refreshJoinSession() { return unavailable(); }
+  async leaveSession() { return unavailable(); }
 }
 export function createDisabledRwaProviders() {
   return Object.freeze({
