@@ -34,7 +34,11 @@ import com.example.myandroidapp.data.ClassDto
 import com.example.myandroidapp.data.SubjectDto
 import com.example.myandroidapp.data.ScheduleDto
 import com.example.myandroidapp.data.PlaybackSessionRequest
+import com.example.myandroidapp.data.DemoLiveJoinRequest
+import com.example.myandroidapp.data.DemoLiveJoinSessionDto
+import com.example.myandroidapp.data.DemoPlaybackSessionRequest
 import com.example.myandroidapp.player.AuthorizedVideoPlayer
+import com.example.myandroidapp.player.DemoVideoPlayer
 
 private enum class ClassTab { LIVE, RECORDED }
 private enum class CategoryFilter { ALL, FREE, PREMIUM }
@@ -87,6 +91,8 @@ private fun PublicClassesApp() {
     var error by remember { mutableStateOf<String?>(null) }
     var notice by remember { mutableStateOf<String?>(null) }
     var mediaUrl by remember { mutableStateOf<String?>(null) }
+    var demoMediaResource by remember { mutableStateOf<Int?>(null) }
+    var liveRoom by remember { mutableStateOf<DemoLiveJoinSessionDto?>(null) }
     var menuExpanded by remember { mutableStateOf(false) }
 
     suspend fun refresh() {
@@ -95,30 +101,36 @@ private fun PublicClassesApp() {
         try {
             val api = ApiServiceFactory.learning(context)
             if (BuildConfig.DEMO_MODE) {
-                subjects = listOf(SubjectDto("demo-batch", "DEMO — Sample Batch"))
-                live = listOf(ClassItem(
-                    id = "demo-live-class", title = "DEMO — Sample Live Class",
-                    subject = "DEMO — Sample Batch", teacher = "DEMO — Sample Course",
-                    timeLabel = "", status = "Scheduled • DEMO", description = "Sample live-class card only.",
-                    chapterId = null, joinUrl = null, playbackUrl = null, visibility = "paid",
-                    demoAccess = true, contentId = "demo-live-class"
-                ))
-                recorded = listOf(
+                val demo = api.demoCatalogue()
+                subjects = demo.batches.map { SubjectDto(it.id, it.title) }
+                recorded = demo.lectures.map { lecture ->
+                    val chapter = demo.chapters.firstOrNull { it.id == lecture.chapterId }
+                    val course = demo.courses.firstOrNull { it.id == chapter?.courseId }
+                    val batch = demo.batches.firstOrNull { it.id == course?.batchId }
                     ClassItem(
-                        id = "demo-free-lecture", title = "DEMO — Free Sample Lecture",
-                        subject = "DEMO — Sample Batch", teacher = "DEMO — Sample Course",
-                        timeLabel = "", status = "Recorded • DEMO", description = "Sample free-content UI flow.",
-                        chapterId = "demo-chapter", joinUrl = null, playbackUrl = null,
-                        visibility = "free", demoAccess = false, contentId = "demo-free-lecture"
-                    ),
-                    ClassItem(
-                        id = "demo-premium-lecture", title = "DEMO — Premium Sample Lecture",
-                        subject = "DEMO — Sample Batch", teacher = "DEMO — Sample Course",
-                        timeLabel = "", status = "Recorded • DEMO", description = "Sample Premium UI flow; not a real subscription.",
-                        chapterId = "demo-chapter", joinUrl = null, playbackUrl = null,
-                        visibility = "paid", demoAccess = true, contentId = "demo-premium-lecture"
+                        id = lecture.id, title = lecture.title,
+                        subject = batch?.title ?: "Demo batch",
+                        teacher = course?.title ?: "Demo course",
+                        timeLabel = "", status = "Recorded • DEMO",
+                        description = lecture.description.orEmpty(), chapterId = lecture.chapterId,
+                        joinUrl = null, playbackUrl = null, visibility = lecture.visibility,
+                        demoAccess = true, contentId = lecture.id
                     )
-                )
+                }
+                live = demo.liveClasses.map { liveClass ->
+                    val course = demo.courses.firstOrNull { it.id == liveClass.courseId }
+                    val batch = demo.batches.firstOrNull { it.id == course?.batchId }
+                    ClassItem(
+                        id = liveClass.id, title = liveClass.title,
+                        subject = batch?.title ?: "Demo batch",
+                        teacher = course?.title ?: "Demo course",
+                        timeLabel = liveClass.startsAt.orEmpty(), status = "Available • DEMO",
+                        description = "Locally controlled demo room. No external meeting link.",
+                        chapterId = null, joinUrl = null, playbackUrl = null,
+                        visibility = liveClass.visibility, demoAccess = true,
+                        contentId = liveClass.id
+                    )
+                }
                 schedules = emptyList()
                 return
             }
@@ -178,7 +190,13 @@ private fun PublicClassesApp() {
         chapters = if (selectedSubject == "All") emptyList() else {
             val batch = subjects.firstOrNull { it.name == selectedSubject }
             if (BuildConfig.DEMO_MODE) {
-                listOf(com.example.myandroidapp.data.ChapterDto("demo-chapter", "demo-batch", "DEMO — Sample Chapter"))
+                runCatching {
+                    val demo = ApiServiceFactory.learning(context).demoCatalogue()
+                    val courseIds = demo.courses.filter { it.batchId == batch?.id }.map { it.id }.toSet()
+                    demo.chapters.filter { it.courseId in courseIds }.map {
+                        com.example.myandroidapp.data.ChapterDto(it.id, batch?.id.orEmpty(), it.title)
+                    }
+                }.getOrDefault(emptyList())
             } else if (batch == null) emptyList() else runCatching {
                 val api = ApiServiceFactory.learning(context)
                 val legacyChapters = api.chapters(batch.id)
@@ -219,7 +237,42 @@ private fun PublicClassesApp() {
         primary = violet, secondary = violet, background = pageBg, surface = panel,
         onPrimary = Color.White, onBackground = Color.White, onSurface = Color.White
     )) {
-        if (mediaUrl != null) {
+        if (liveRoom != null) {
+            val room = liveRoom!!
+            Column(Modifier.fillMaxSize().background(pageBg).padding(20.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                Text("DEMO LIVE ROOM", color = Color(0xFFFFD180), fontWeight = FontWeight.Bold)
+                Text(room.title, color = Color.White, fontSize = 24.sp, fontWeight = FontWeight.Bold)
+                Text("Joined • Locally controlled room", color = Color(0xFF7FE0A1))
+                Card(colors = CardDefaults.cardColors(containerColor = panel)) {
+                    Column(Modifier.fillMaxWidth().padding(18.dp),
+                        verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                        Text("Demo room", color = Color.White, fontWeight = FontWeight.Bold)
+                        Text("You are connected to this app's local demo room session. This is not a live broadcast or Original RWA meeting.",
+                            color = muted)
+                        Text("Room participants", color = Color.White, fontWeight = FontWeight.SemiBold)
+                        Text("• You (student)\n• Demo host\n• Demo learner", color = muted)
+                    }
+                }
+                Button(onClick = {
+                    scope.launch {
+                        runCatching { ApiServiceFactory.learning(context).leaveDemoLiveSession(room.liveClassId) }
+                        liveRoom = null
+                    }
+                }, modifier = Modifier.fillMaxWidth(),
+                    colors = ButtonDefaults.buttonColors(containerColor = violet)) {
+                    Text("Leave demo room")
+                }
+            }
+        } else if (demoMediaResource != null) {
+            Column(Modifier.fillMaxSize().background(Color.Black)) {
+                TextButton(onClick = { demoMediaResource = null }) {
+                    Text("Back to lectures", color = Color.White)
+                }
+                DemoVideoPlayer(resourceId = demoMediaResource!!,
+                    modifier = Modifier.fillMaxWidth().weight(1f))
+            }
+        } else if (mediaUrl != null) {
             Column(Modifier.fillMaxSize().background(Color.Black)) {
                 TextButton(onClick = { mediaUrl = null }) {
                     Text("Back to lectures", color = Color.White)
@@ -459,10 +512,45 @@ private fun PublicClassesApp() {
                                         onClick = {
                                             scope.launch {
                                                 when {
+                                                    BuildConfig.DEMO_MODE && tab == ClassTab.LIVE -> {
+                                                        notice = "Checking demo-room entitlement…"
+                                                        try {
+                                                            val session = ApiServiceFactory.learning(context)
+                                                                .createDemoLiveSession(DemoLiveJoinRequest(item.contentId))
+                                                            if (session.status == "joined" &&
+                                                                session.roomType == "local_demo" &&
+                                                                !session.providerAuthorization
+                                                            ) {
+                                                                notice = null
+                                                                liveRoom = session
+                                                            } else {
+                                                                notice = "Demo room authorization was not granted."
+                                                            }
+                                                        } catch (_: Exception) {
+                                                            notice = "Demo live-room join denied or unavailable."
+                                                        }
+                                                    }
                                                     BuildConfig.DEMO_MODE -> {
-                                                        notice = if (item.isPremium)
-                                                            "DEMO ONLY — sample Premium entitlement. Original RWA access is not granted."
-                                                        else "DEMO ONLY — sample Free flow. No media URL is configured."
+                                                        notice = "Checking server-side demo entitlement…"
+                                                        try {
+                                                            val session = ApiServiceFactory.learning(context)
+                                                                .createDemoPlaybackSession(DemoPlaybackSessionRequest(item.contentId))
+                                                            val resource = when (session.mediaRef) {
+                                                                "demo-free" -> R.raw.demo_free_lesson
+                                                                "demo-premium" -> R.raw.demo_premium_lesson
+                                                                else -> 0
+                                                            }
+                                                            if (session.status == "demo_preview" && resource != 0 &&
+                                                                !session.providerAuthorization
+                                                            ) {
+                                                                notice = null
+                                                                demoMediaResource = resource
+                                                            } else {
+                                                                notice = "Demo playback authorization was not granted."
+                                                            }
+                                                        } catch (_: Exception) {
+                                                            notice = "Demo playback denied, expired or unavailable."
+                                                        }
                                                     }
                                                     tab == ClassTab.LIVE && (item.providerContent || item.isPremium) ->
                                                         notice = "Authorized live-class join details are not configured."
