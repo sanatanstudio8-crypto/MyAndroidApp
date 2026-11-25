@@ -56,6 +56,35 @@ test("playback does not expose URLs when no authorized provider is configured",a
   db.close();
 });
 
+test("demo entitlement cannot authorize real provider playback",async()=>{
+  let playbackCalls=0;
+  const db=new Database(":memory:"); db.pragma("foreign_keys=ON"); migrateDatabase(db);
+  const providers={
+    entitlement:{check:async(_userId,contentId)=>({contentId,decision:"unknown"})},
+    playback:{createSession:async()=>{playbackCalls++;return {status:"created",playbackUrl:"https://media.example.test/video.m3u8"};}}
+  };
+  const demoApp=createApp({db,jwtSecret:secret,providers,demoMode:true});
+  const catalogue=await request(demoApp).get("/v1/demo/catalogue").expect(200);
+  assert.equal(catalogue.body.mode,"demo");
+  assert.equal(catalogue.body.lectures.find(x=>x.id==="demo-premium-lecture").entitlement,"demo_premium");
+  const demoGrant=await request(demoApp).get("/v1/demo/entitlements/content/demo-premium-lecture").expect(200);
+  assert.equal(demoGrant.body.decision,"demo_granted");
+  assert.equal(demoGrant.body.providerAuthorization,false);
+  const preview=await request(demoApp).post("/v1/demo/playback/sessions").send({contentId:"demo-premium-lecture"}).expect(200);
+  assert.equal(preview.body.status,"demo_preview");
+  assert.equal(preview.body.playbackUrl,null);
+  assert.equal(preview.body.providerAuthorization,false);
+  const token=jwt.sign({sub:"demo-user"},secret,{issuer:"balidan-rwa-api"});
+  const real=await request(demoApp).post("/v1/playback/sessions")
+    .set("Authorization",`Bearer ${token}`).send({contentId:"demo-premium-lecture"}).expect(403);
+  assert.equal(real.body.entitlement.decision,"unknown");
+  assert.equal(playbackCalls,0);
+  const productionApp=createApp({db,jwtSecret:secret,providers,demoMode:false});
+  const disabled=await request(productionApp).get("/v1/demo/catalogue").expect(404);
+  assert.equal(disabled.body.error,"Demo mode is disabled.");
+  db.close();
+});
+
 test("explicitly denied Premium entitlement never reaches the playback provider",async()=>{
   let playbackCalls=0;
   const {db,app}=fixture({
