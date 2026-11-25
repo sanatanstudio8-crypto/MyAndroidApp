@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import Database from "better-sqlite3";
+import request from "supertest";
 import {
   MockRwaIdentityProvider, MockRwaCatalogueProvider, MockRwaEntitlementProvider,
   MockRwaPlaybackProvider, MockLiveJoinProvider
@@ -131,7 +132,7 @@ test("typed provider configuration errors map to a safe 503 response", async () 
     jwtSecret: "provider-error-test-secret-at-least-thirty-two-characters",
     providers: { catalogue: { listBatches: async () => { throw new ProviderNotConfiguredError("original-rwa"); } } }
   });
-  const response = await (await import("supertest")).default(app).get("/v1/batches").expect(503);
+  const response = await request(app).get("/v1/batches").expect(503);
   assert.equal(response.body.code, "PROVIDER_NOT_CONFIGURED");
   assert.equal(response.body.error, "Provider integration is not configured.");
   db.close();
