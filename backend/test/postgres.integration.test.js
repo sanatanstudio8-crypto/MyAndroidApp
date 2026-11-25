@@ -34,6 +34,24 @@ test("PostgreSQL migrations, constraints, providers and API integration", { skip
     }).expect(200);
     const token = login.body.accessToken;
     assert.ok(token);
+    const integrationUser = await db.get("SELECT id FROM users WHERE LOWER(email)=LOWER(?)", "integration.user@example.com");
+
+    await db.run(
+      "INSERT INTO entitlement_checks(id,user_id,content_id,decision,checked_at) VALUES(?,?,?,?,?)",
+      "pg-denied-entitlement", integrationUser.id, "pg-denied-lecture", "denied", new Date().toISOString()
+    );
+    await request(app).post("/v1/playback/sessions")
+      .set("Authorization", "Bearer " + token)
+      .send({ contentId: "pg-denied-lecture" }).expect(403);
+
+    await db.run(
+      "INSERT INTO entitlement_checks(id,user_id,content_id,decision,checked_at) VALUES(?,?,?,?,?)",
+      "pg-granted-entitlement", integrationUser.id, "pg-granted-unavailable", "granted", new Date().toISOString()
+    );
+    const unavailablePlayback = await request(app).post("/v1/playback/sessions")
+      .set("Authorization", "Bearer " + token)
+      .send({ contentId: "pg-granted-unavailable" }).expect(503);
+    assert.equal(unavailablePlayback.body.playbackUrl, undefined);
 
     await db.run("INSERT INTO courses(id,title,visibility,created_at) VALUES(?,?,?,?)", "pg-course-1", "PostgreSQL Course", "free", new Date().toISOString());
     await db.run("INSERT INTO course_chapters(id,course_id,title,position) VALUES(?,?,?,?)", "pg-chapter-1", "pg-course-1", "Chapter One", 1);
