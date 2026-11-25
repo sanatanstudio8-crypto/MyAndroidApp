@@ -1,4 +1,4 @@
-name: Android and backend checks # PostgreSQL validation pipeline
+name: Android debug APKs and backend checks
 
 on:
   push:
@@ -40,7 +40,7 @@ jobs:
       - name: PostgreSQL migrations and API integration tests
         run: npm run test:postgres
 
-  android-compile:
+  android-debug-apks:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -53,7 +53,23 @@ jobs:
           gradle-version: "8.9"
       - name: Generate wrapper because this repository does not currently contain one
         run: gradle wrapper --gradle-version 8.9
-      - name: Compile Android debug variant (no APK artifact)
-        run: ./gradlew :app:compileDebugKotlin -PAPI_BASE_URL="https://myandroidapp-api.onrender.com"
-      - name: Compile opt-in demo mode (no APK artifact)
-        run: ./gradlew :app:compileDebugKotlin -PDEMO_MODE=true -PAPI_BASE_URL="https://myandroidapp-api.onrender.com"
+      - name: Build standard Debug APK (no release build)
+        run: |
+          ./gradlew :app:assembleDebug -PAPI_BASE_URL="https://myandroidapp-api.onrender.com"
+          mkdir -p apk-output
+          cp app/build/outputs/apk/debug/app-debug.apk apk-output/balidan-rwa-debug.apk
+      - name: Build DEMO_MODE Debug APK (no release build)
+        run: |
+          ./gradlew :app:assembleDebug -PDEMO_MODE=true -PAPI_BASE_URL="https://myandroidapp-api.onrender.com"
+          cp app/build/outputs/apk/debug/app-debug.apk apk-output/balidan-rwa-demo-debug.apk
+      - name: Report APK file sizes
+        run: |
+          ls -lh apk-output/*.apk
+          sha256sum apk-output/*.apk
+      - name: Upload Debug APK artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: balidan-rwa-debug-apks
+          path: apk-output/*.apk
+          if-no-files-found: error
+          retention-days: 14
