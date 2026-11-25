@@ -51,6 +51,12 @@ export function createApp({db, jwtSecret=process.env.JWT_SECRET, providers={}, d
   const demoPlayback=demoMode?(providers.demoPlayback||new DemoPlaybackProvider({entitlementProvider:demoEntitlement})):null;
   const demoLiveJoin=demoMode?(providers.demoLiveJoin||new DemoLiveJoinProvider({entitlementProvider:demoEntitlement})):null;
   const app=express();
+  // Original RWA is opt-in only; incomplete or absent bundles always fail closed.
+  const injectedRwa=providers.originalRwa;
+  const originalRwaProviders=injectedRwa?.enabled===true && injectedRwa?.configurationStatus?.ready===true
+    ? injectedRwa
+    : createDisabledRwaProviders();
+  app.locals.originalRwaProviders=originalRwaProviders;
   app.disable("x-powered-by");
   app.use(helmet());
   app.use(express.json({limit:"32kb"}));
