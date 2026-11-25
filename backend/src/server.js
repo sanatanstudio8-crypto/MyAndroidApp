@@ -14,6 +14,7 @@ import { PostgresDatabase } from "./db/postgres-database.js";
 import { SqliteCatalogueProvider, SqliteIdentityProvider, SqliteEntitlementProvider, UnconfiguredPlaybackProvider } from "./providers/sqlite-providers.js";
 import { PostgresCatalogueProvider, PostgresIdentityProvider, PostgresEntitlementProvider, UnconfiguredPostgresPlaybackProvider } from "./providers/postgres-providers.js";
 import { ProviderError, ProviderNotConfiguredError, ProviderAuthenticationError, ProviderAuthorizationError, ProviderContractError } from "./providers/errors.js";
+import { DEMO_CATALOGUE, DemoEntitlementProvider, DemoPlaybackProvider, DemoLiveJoinProvider } from "./providers/demo-providers.js";
 
 const validEmail = value => typeof value==="string" && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
 
@@ -44,6 +45,10 @@ export function createApp({db, jwtSecret=process.env.JWT_SECRET, providers={}, d
   const identity=providers.identity||(postgres?new PostgresIdentityProvider(db,jwtSecret):new SqliteIdentityProvider(db,jwtSecret));
   const entitlement=providers.entitlement||(postgres?new PostgresEntitlementProvider(db):new SqliteEntitlementProvider(db));
   const playback=providers.playback||(postgres?new UnconfiguredPostgresPlaybackProvider():new UnconfiguredPlaybackProvider());
+  // Demo providers are isolated from the real entitlement and playback providers.
+  const demoEntitlement=demoMode?(providers.demoEntitlement||new DemoEntitlementProvider()):null;
+  const demoPlayback=demoMode?(providers.demoPlayback||new DemoPlaybackProvider({entitlementProvider:demoEntitlement})):null;
+  const demoLiveJoin=demoMode?(providers.demoLiveJoin||new DemoLiveJoinProvider({entitlementProvider:demoEntitlement})):null;
   const app=express();
   app.disable("x-powered-by");
   app.use(helmet());
@@ -70,26 +75,46 @@ export function createApp({db, jwtSecret=process.env.JWT_SECRET, providers={}, d
     try { const result=await identity.authenticate({email,password}); return result?res.json(result):res.status(401).json({error:"Email or password is incorrect."}); }
     catch { return res.status(500).json({error:"Login could not be completed."}); }
   });
-  // Demo fixtures are separate from real provider and entitlement records.
+  // Demo fixtures and sessions are isolated from real provider records.
   app.get("/v1/demo/catalogue",(_req,res)=>{
     if(!demoMode)return res.status(404).json({error:"Demo mode is disabled."});
-    return res.json({mode:"demo",notice:"Sample data only. Not Original RWA content or authorization.",
-      batches:[{id:"demo-batch",title:"DEMO — Sample Batch",name:"DEMO — Sample Batch"}],
-      courses:[{id:"demo-course",batchId:"demo-batch",title:"DEMO — Sample Course",visibility:"paid"}],
-      chapters:[{id:"demo-chapter",courseId:"demo-course",title:"DEMO — Sample Chapter",position:1}],
-      lectures:[{id:"demo-free-lecture",chapterId:"demo-chapter",title:"DEMO — Free Sample Lecture",type:"recorded",visibility:"free",entitlement:"demo_free"},{id:"demo-premium-lecture",chapterId:"demo-chapter",title:"DEMO — Premium Sample Lecture",type:"recorded",visibility:"paid",entitlement:"demo_premium"}],
-      liveClasses:[{id:"demo-live-class",title:"DEMO — Sample Live Class",courseId:"demo-course",status:"scheduled",visibility:"paid",entitlement:"demo_premium"}]});
+    return res.json({mode:"demo",notice:"Synthetic sample data and locally bundled media only. Not Original RWA content or authorization.",...DEMO_CATALOGUE});
   });
-  app.get("/v1/demo/entitlements/content/:contentId",(req,res)=>{
+  app.get("/v1/demo/entitlements/content/:contentId",async(req,res)=>{
     if(!demoMode)return res.status(404).json({error:"Demo mode is disabled."});
-    const sample=String(req.params.contentId).startsWith("demo-");
-    return res.json({contentId:req.params.contentId,decision:sample?"demo_granted":"unknown",source:"demo_only",providerAuthorization:false});
+    return res.json(await demoEntitlement.check("demo-user",req.params.contentId));
   });
-  app.post("/v1/demo/playback/sessions",(req,res)=>{
+  app.post("/v1/demo/playback/sessions",async(req,res,next)=>{
     if(!demoMode)return res.status(404).json({error:"Demo mode is disabled."});
     const contentId=req.body?.contentId;
-    if(typeof contentId!=="string"||!contentId.startsWith("demo-"))return res.status(403).json({error:"Demo sample content only."});
-    return res.json({contentId,status:"demo_preview",entitlement:"demo_granted",source:"demo_only",providerAuthorization:false,playbackUrl:null});
+    if(typeof contentId!=="string"||!contentId.trim())return res.status(400).json({error:"contentId is required."});
+    try {
+      const entitlementResult=await demoEntitlement.check("demo-user",contentId);
+      if(entitlementResult.decision!=="granted")return res.status(403).json({error:"Demo entitlement is not granted.",entitlement:entitlementResult});
+      const session=await demoPlayback.createSession("demo-user",contentId);
+      if(session.status!=="demo_preview"||!["demo-free","demo-premium"].includes(session.mediaRef))
+        return res.status(403).json({error:"No playable demo media is assigned to this content.",session});
+      return res.status(201).json(session);
+    } catch(error){next(error);}
+  });
+  app.post("/v1/demo/live/sessions",async(req,res,next)=>{
+    if(!demoMode)return res.status(404).json({error:"Demo mode is disabled."});
+    const liveClassId=req.body?.liveClassId;
+    if(typeof liveClassId!=="string"||!liveClassId.trim())return res.status(400).json({error:"liveClassId is required."});
+    try {
+      const entitlementResult=await demoEntitlement.check("demo-user",liveClassId);
+      if(entitlementResult.decision!=="granted")return res.status(403).json({error:"Demo live entitlement is not granted.",entitlement:entitlementResult});
+      const session=await demoLiveJoin.createJoinSession("demo-user",liveClassId);
+      if(session.status!=="joined"||session.roomType!=="local_demo")return res.status(403).json({error:"Demo room could not be joined.",session});
+      return res.status(201).json(session);
+    } catch(error){next(error);}
+  });
+  app.post("/v1/demo/live/sessions/:liveClassId/leave",async(req,res,next)=>{
+    if(!demoMode)return res.status(404).json({error:"Demo mode is disabled."});
+    try {
+      const left=await demoLiveJoin.leaveSession("demo-user",req.params.liveClassId);
+      return res.json({liveClassId:req.params.liveClassId,status:"left",sessionClosed:left,source:"demo_only"});
+    } catch(error){next(error);}
   });
   app.get("/v1/batches",async(_req,res,next)=>{try{res.json(await catalogue.listBatches());}catch(e){next(e);}});
   app.get("/v1/courses",async(req,res,next)=>{try{res.json(await catalogue.listCourses(req.query.batchId));}catch(e){next(e);}});
