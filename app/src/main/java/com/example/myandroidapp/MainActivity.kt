@@ -464,6 +464,8 @@ private fun PublicClassesApp() {
                                                             "DEMO ONLY — sample Premium entitlement. Original RWA access is not granted."
                                                         else "DEMO ONLY — sample Free flow. No media URL is configured."
                                                     }
+                                                    tab == ClassTab.LIVE && (item.providerContent || item.isPremium) ->
+                                                        notice = "Authorized live-class join details are not configured."
                                                     item.providerContent || item.isPremium -> {
                                                         notice = "Checking playback authorization…"
                                                         try {
