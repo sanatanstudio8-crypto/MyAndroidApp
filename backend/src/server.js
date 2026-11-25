@@ -13,6 +13,7 @@ import { migratePostgres } from "./db/postgres-migrations.js";
 import { PostgresDatabase } from "./db/postgres-database.js";
 import { SqliteCatalogueProvider, SqliteIdentityProvider, SqliteEntitlementProvider, UnconfiguredPlaybackProvider } from "./providers/sqlite-providers.js";
 import { PostgresCatalogueProvider, PostgresIdentityProvider, PostgresEntitlementProvider, UnconfiguredPostgresPlaybackProvider } from "./providers/postgres-providers.js";
+import { ProviderError, ProviderNotConfiguredError, ProviderAuthenticationError, ProviderAuthorizationError, ProviderContractError } from "./providers/errors.js";
 
 const validEmail = value => typeof value==="string" && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
 
@@ -128,7 +129,15 @@ export function createApp({db, jwtSecret=process.env.JWT_SECRET, providers={}, d
   app.get("/v1/subjects",async(_req,res,next)=>{try{res.json(await dbAll(db,"SELECT DISTINCT id,name FROM subjects ORDER BY name"));}catch(e){next(e);}});
   app.get("/v1/subjects/:subjectId/chapters",async(req,res,next)=>{try{res.json(await dbAll(db,"SELECT id,subject_id AS \"subjectId\",name FROM chapters WHERE subject_id=? ORDER BY name",req.params.subjectId));}catch(e){next(e);}});
   app.get("/v1/schedule",async(_req,res,next)=>{try{res.json(await dbAll(db,"SELECT s.id,s.class_id AS \"classId\",s.starts_at AS \"startsAt\",s.ends_at AS \"endsAt\" FROM schedules s JOIN classes c ON c.id=s.class_id ORDER BY s.starts_at ASC"));}catch(e){next(e);}});
-  app.use((err,_req,res,_next)=>{if(err.message==="Origin is not allowed by CORS.")return res.status(403).json({error:err.message});return res.status(500).json({error:"Unexpected server error."});});
+  app.use((err,_req,res,_next)=>{
+    if(err.message==="Origin is not allowed by CORS.")return res.status(403).json({error:err.message});
+    if(err instanceof ProviderNotConfiguredError)return res.status(503).json({error:err.message,code:err.code});
+    if(err instanceof ProviderAuthorizationError)return res.status(403).json({error:err.message,code:err.code});
+    if(err instanceof ProviderAuthenticationError)return res.status(502).json({error:err.message,code:err.code});
+    if(err instanceof ProviderContractError)return res.status(502).json({error:"Provider response was invalid.",code:err.code});
+    if(err instanceof ProviderError)return res.status(err.retryable?503:502).json({error:"Provider request failed.",code:err.code});
+    return res.status(500).json({error:"Unexpected server error."});
+  });
   return app;
 }
 
