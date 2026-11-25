@@ -234,7 +234,7 @@ private fun BatchLearningApp() {
                         item {
                             Column(Modifier.padding(horizontal = 20.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                                 Text("Batch classroom", color = violet, fontSize = 14.sp, fontWeight = FontWeight.Bold)
-                                Text(selectedBatch.title, color = Color.White, fontSize = 22.sp, fontWeight = FontWeight.Bold)
+                                Text(selected?.title ?: "Batch", color = Color.White, fontSize = 22.sp, fontWeight = FontWeight.Bold)
                                 Text("${selectedCourses.size} courses • ${selectedLiveClasses.size} live classes • ${selectedLectures.size} recorded lectures",
                                     color = muted, fontSize = 13.sp)
                             }
