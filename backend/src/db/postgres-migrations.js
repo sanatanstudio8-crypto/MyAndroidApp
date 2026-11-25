@@ -39,23 +39,30 @@ const migrations = [
 ];
 
 export async function migratePostgres(db) {
-  await db.exec("CREATE TABLE IF NOT EXISTS schema_migrations (version INTEGER PRIMARY KEY, name TEXT NOT NULL, applied_at TEXT NOT NULL)");
-  const applied = new Set((await db.all("SELECT version FROM schema_migrations")).map(row => Number(row.version)));
-  for (const migration of migrations) {
-    if (applied.has(migration.version)) continue;
-    const client = await db.pool.connect();
-    try {
+  // Serialize migrations across application instances and concurrent test workers.
+  // The lock is session-scoped, so all migration DDL runs on this same client.
+  const client = await db.pool.connect();
+  try {
+    await client.query("SELECT pg_advisory_lock(731942, 2)");
+    await client.query("CREATE TABLE IF NOT EXISTS schema_migrations (version INTEGER PRIMARY KEY, name TEXT NOT NULL, applied_at TEXT NOT NULL)");
+    const appliedRows = await client.query("SELECT version FROM schema_migrations");
+    const applied = new Set(appliedRows.rows.map(row => Number(row.version)));
+    for (const migration of migrations) {
+      if (applied.has(migration.version)) continue;
       await client.query("BEGIN");
-      for (const statement of migration.sql) await client.query(statement);
-      await client.query("INSERT INTO schema_migrations(version,name,applied_at) VALUES($1,$2,$3)", [migration.version, migration.name, new Date().toISOString()]);
-      await client.query("COMMIT");
-    } catch (error) {
-      await client.query("ROLLBACK");
-      throw error;
-    } finally {
-      client.release();
+      try {
+        for (const statement of migration.sql) await client.query(statement);
+        await client.query("INSERT INTO schema_migrations(version,name,applied_at) VALUES($1,$2,$3)", [migration.version, migration.name, new Date().toISOString()]);
+        await client.query("COMMIT");
+      } catch (error) {
+        await client.query("ROLLBACK");
+        throw error;
+      }
     }
+    const row = await client.query("SELECT MAX(version) AS version FROM schema_migrations");
+    return Number(row.rows[0]?.version || 0);
+  } finally {
+    try { await client.query("SELECT pg_advisory_unlock(731942, 2)"); }
+    finally { client.release(); }
   }
-  const row = await db.get("SELECT MAX(version) AS version FROM schema_migrations");
-  return Number(row?.version || 0);
 }
