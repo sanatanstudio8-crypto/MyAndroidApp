@@ -14,7 +14,7 @@ import { PostgresDatabase } from "./db/postgres-database.js";
 import { SqliteCatalogueProvider, SqliteIdentityProvider, SqliteEntitlementProvider, UnconfiguredPlaybackProvider } from "./providers/sqlite-providers.js";
 import { PostgresCatalogueProvider, PostgresIdentityProvider, PostgresEntitlementProvider, UnconfiguredPostgresPlaybackProvider } from "./providers/postgres-providers.js";
 
-const validEmail = value => typeof value==="string" && /^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(value);
+const validEmail = value => typeof value==="string" && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
 
 export function createDatabase(filename=":memory:") {
   if(filename!==":memory:") fs.mkdirSync(path.dirname(path.resolve(filename)),{recursive:true});
