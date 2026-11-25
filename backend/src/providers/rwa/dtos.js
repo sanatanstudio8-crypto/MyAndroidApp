@@ -6,6 +6,7 @@ const requiredString = (value, field) => {
 };
 const optionalString = value => typeof value === "string" && value.trim() ? value.trim() : null;
 const decision = value => ["granted", "denied", "unknown"].includes(value) ? value : "unknown";
+const secureUrl = (value, field) => { const url = optionalString(value); if (url && !url.startsWith("https://")) throw new ProviderContractError(`${field} must use HTTPS`); return url; };
 
 export function accountSessionDto(input = {}) {
   return Object.freeze({
@@ -36,8 +37,8 @@ export function entitlementDto(input = {}) {
   return Object.freeze({ contentId: requiredString(input.contentId, "entitlement.contentId"), decision: decision(input.decision), source: optionalString(input.source) || "provider", checkedAt: optionalString(input.checkedAt), expiresAt: optionalString(input.expiresAt) });
 }
 export function playbackSessionDto(input = {}) {
-  return Object.freeze({ id: optionalString(input.id), contentId: requiredString(input.contentId, "playback.contentId"), status: ["created", "unavailable", "expired", "denied", "mock_created"].includes(input.status) ? input.status : "unavailable", protocol: optionalString(input.protocol), playbackUrl: optionalString(input.playbackUrl), expiresAt: optionalString(input.expiresAt), providerAuthorization: input.providerAuthorization === true });
+  return Object.freeze({ id: optionalString(input.id), contentId: requiredString(input.contentId, "playback.contentId"), status: ["created", "unavailable", "expired", "denied", "mock_created"].includes(input.status) ? input.status : "unavailable", protocol: optionalString(input.protocol), playbackUrl: secureUrl(input.playbackUrl, "playbackUrl"), expiresAt: optionalString(input.expiresAt), providerAuthorization: input.providerAuthorization === true });
 }
 export function liveJoinSessionDto(input = {}) {
-  return Object.freeze({ id: optionalString(input.id), liveClassId: requiredString(input.liveClassId, "liveJoin.liveClassId"), status: ["created", "unavailable", "expired", "denied", "mock_created"].includes(input.status) ? input.status : "unavailable", joinUrl: optionalString(input.joinUrl), expiresAt: optionalString(input.expiresAt), providerAuthorization: input.providerAuthorization === true });
+  return Object.freeze({ id: optionalString(input.id), liveClassId: requiredString(input.liveClassId, "liveJoin.liveClassId"), status: ["created", "unavailable", "expired", "denied", "mock_created"].includes(input.status) ? input.status : "unavailable", joinUrl: secureUrl(input.joinUrl, "joinUrl"), expiresAt: optionalString(input.expiresAt), providerAuthorization: input.providerAuthorization === true });
 }
