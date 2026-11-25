@@ -8,6 +8,7 @@ import {
 import { createDisabledRwaProviders } from "../src/providers/rwa/disabled-rwa-providers.js";
 import { batchDto, courseDto, entitlementDto, playbackSessionDto } from "../src/providers/rwa/dtos.js";
 import { ProviderAuthorizationError, ProviderAuthenticationError, ProviderContractError, ProviderNotConfiguredError } from "../src/providers/errors.js";
+import { createApp } from "../src/server.js";
 import { migrateDatabase } from "../src/db/migrations.js";
 import { SqliteCatalogueProvider, SqliteEntitlementProvider } from "../src/providers/sqlite-providers.js";
 
@@ -118,5 +119,20 @@ test("SQLite catalogue and entitlement providers retain existing Balidan persist
   assert.equal((await entitlements.check("u1", "l1")).decision, "unknown");
   db.prepare("INSERT INTO entitlement_checks(id,user_id,content_id,decision,checked_at) VALUES(?,?,?,?,?)").run("e1", "u1", "l1", "granted", new Date().toISOString());
   assert.equal((await entitlements.check("u1", "l1")).decision, "granted");
+  db.close();
+});
+
+test("typed provider configuration errors map to a safe 503 response", async () => {
+  const db = new Database(":memory:");
+  db.pragma("foreign_keys=ON");
+  migrateDatabase(db);
+  const app = createApp({
+    db,
+    jwtSecret: "provider-error-test-secret-at-least-thirty-two-characters",
+    providers: { catalogue: { listBatches: async () => { throw new ProviderNotConfiguredError("original-rwa"); } } }
+  });
+  const response = await (await import("supertest")).default(app).get("/v1/batches").expect(503);
+  assert.equal(response.body.code, "PROVIDER_NOT_CONFIGURED");
+  assert.equal(response.body.error, "Provider integration is not configured.");
   db.close();
 });
