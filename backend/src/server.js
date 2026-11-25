@@ -14,7 +14,8 @@ import { PostgresDatabase } from "./db/postgres-database.js";
 import { SqliteCatalogueProvider, SqliteIdentityProvider, SqliteEntitlementProvider, UnconfiguredPlaybackProvider } from "./providers/sqlite-providers.js";
 import { PostgresCatalogueProvider, PostgresIdentityProvider, PostgresEntitlementProvider, UnconfiguredPostgresPlaybackProvider } from "./providers/postgres-providers.js";
 import { ProviderError, ProviderNotConfiguredError, ProviderAuthenticationError, ProviderAuthorizationError, ProviderContractError } from "./providers/errors.js";
-import { DEMO_CATALOGUE, DemoEntitlementProvider, DemoPlaybackProvider, DemoLiveJoinProvider } from "./providers/demo-providers.js";\nimport { createDisabledRwaProviders } from "./providers/rwa/disabled-rwa-providers.js";
+import { DEMO_CATALOGUE, DemoEntitlementProvider, DemoPlaybackProvider, DemoLiveJoinProvider } from "./providers/demo-providers.js";
+import { createDisabledRwaProviders } from "./providers/rwa/disabled-rwa-providers.js";
 
 const validEmail = value => typeof value==="string" && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
 
