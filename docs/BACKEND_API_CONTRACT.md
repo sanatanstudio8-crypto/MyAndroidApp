@@ -1,31 +1,27 @@
-# MyAndroidApp backend API contract
+# Balidan RWA backend API contract
 
-This contract describes **our own backend**, not an RWA API specification.
+This is the stable Balidan-owned API. It is not an Original RWA API specification. No Original RWA endpoints, credentials, tokens, media URLs or DRM configuration are assumed.
 
-## Demo-mode transport
-- HTTPS only; the Android client rejects a non-HTTPS API base URL.
-- The public college-demo catalogue does not require login.
-- Class media URLs must be HTTPS and must point to authorized demonstration content.
-- Third-party provider credentials and protected playback/license URLs must never be placed in the APK.
+## Catalogue (public)
+- GET /v1/batches -> array of { id, title, name }
+- GET /v1/courses?batchId={id} -> array of { id, title, description?, visibility, batchId? }
+- GET /v1/courses/{courseId} -> course object or 404
+- GET /v1/courses/{courseId}/chapters -> array of { id, courseId, title, position }
+- GET /v1/chapters/{chapterId}/lectures -> recorded lecture metadata array { id, chapterId, title, description?, type, visibility }
+- GET /v1/live-classes -> array of { id, title, courseId?, startsAt?, status, visibility }
 
-## GET /v1/classes/live and GET /v1/classes/recorded
-Public endpoints return both Free and Premium class metadata.
+The legacy /v1/classes/live, /v1/classes/recorded, /v1/subjects, /v1/subjects/{subjectId}/chapters and /v1/schedule routes remain available for existing UI compatibility. The migration does not seed catalogue records.
 
-Class object fields: `id`, `title`, `subject`, `teacher`, optional `description`, optional `startsAt`, `status`, optional `joinUrl`, optional `playbackUrl`, `visibility` (`free` or `paid`), `demoAccess` (boolean), and optional `chapterId`.
+## Identity and protected operations
+- POST /v1/auth/signup and POST /v1/auth/login retain the Bearer JWT response.
+- GET /v1/entitlements/content/{contentId} requires a valid Bearer token and returns { contentId, decision }, where decision is granted, denied or unknown.
+- POST /v1/playback/sessions requires a valid Bearer token and { contentId }. Unknown or denied entitlement returns 403. Playback provider absence returns 503 and never returns a fabricated URL.
 
-For Premium classes, `playbackUrl` and `joinUrl` are returned only when `demoAccess=true`, backed by the server-side `demo_access=1` flag. Otherwise the Premium listing remains visible but no playable URL is provided. Free class URLs are returned as configured by the trusted content administrator.
+## Provider boundary
+CatalogueProvider, IdentityProvider, EntitlementProvider and PlaybackProvider are server-side interfaces. Provider credentials and secret references must remain server-side. A provider must independently confirm entitlement before issuing authorized playback. Unknown is not authorization. The default playback provider is intentionally unconfigured.
 
-## GET /v1/subjects
-Returns `[{ "id": "...", "name": "..." }]`.
+## SQLite
+Versioned migrations are tracked in schema_migrations and applied transactionally. Existing legacy tables and rows are retained; missing legacy columns are added with safe defaults. Provider tables are created empty. Configure DATABASE_FILE on persistent storage for production; ephemeral filesystems are not durable.
 
-## Batch and chapter navigation
-The Android app treats each backend subject as a batch. Selecting a batch requests its chapter list and filters class rows by the optional `chapterId` field. Content administrators must assign each class's `chapter_id` to a chapter belonging to the selected subject for chapter filtering to return matching lectures. Existing rows migrate with a null `chapter_id` and remain visible under the batch's All Chapters selection.
-
-## GET /v1/subjects/{subjectId}/chapters
-Returns `[{ "id": "...", "subjectId": "...", "name": "..." }]`.
-
-## GET /v1/schedule
-Returns the schedule for classes in the demo catalogue.
-
-## Authorization boundary
-The app does not implement payment or subscription flows for this college demonstration. This does not grant access to third-party paid content. Only content owned by the project or explicitly licensed for the demo may be entered into the backend. Do not proxy or bypass RWA DRM, login, payment, or entitlement verification.
+## Security
+Only content owned by Balidan or explicitly licensed for it may be catalogued. Do not bypass third-party login, payment, subscription, entitlement or DRM.
