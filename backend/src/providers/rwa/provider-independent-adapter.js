@@ -55,7 +55,19 @@ export class ProviderIndependentRwaAdapter extends
     this.liveJoin = new RwaLiveJoinAdapter(this.operations, this.normalizers);
   }
 
-  toProviderBundle({ enabled = false } = {}) {\n    return Object.freeze({\n      enabled: enabled === true && this.configurationStatus.ready,\n      identity: this,\n      catalogue: this.catalogue,\n      entitlement: this.entitlement,\n      playback: this.playback,\n      liveJoin: this.liveJoin,\n      configurationStatus: this.configurationStatus\n    });\n  }\n\n  get configurationStatus() {
+  toProviderBundle({ enabled = false } = {}) {
+    return Object.freeze({
+      enabled: enabled === true && this.configurationStatus.ready,
+      identity: this,
+      catalogue: this.catalogue,
+      entitlement: this.entitlement,
+      playback: this.playback,
+      liveJoin: this.liveJoin,
+      configurationStatus: this.configurationStatus
+    });
+  }
+
+  get configurationStatus() {
     return Object.freeze({
       configuredOperations: REQUIRED_OPERATIONS.filter(key => typeof this.operations[key] === "function"),
       missingOperations: REQUIRED_OPERATIONS.filter(key => typeof this.operations[key] !== "function"),
