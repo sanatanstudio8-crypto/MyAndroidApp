@@ -33,6 +33,8 @@ import com.example.myandroidapp.data.ApiServiceFactory
 import com.example.myandroidapp.data.ClassDto
 import com.example.myandroidapp.data.SubjectDto
 import com.example.myandroidapp.data.ScheduleDto
+import com.example.myandroidapp.data.BatchDto
+import com.example.myandroidapp.data.PlaybackSessionRequest
 import com.example.myandroidapp.player.AuthorizedVideoPlayer
 
 private enum class ClassTab { LIVE, RECORDED }
@@ -42,7 +44,9 @@ private data class ClassItem(
     val id: String, val title: String, val subject: String, val teacher: String,
     val timeLabel: String, val status: String, val description: String, val chapterId: String?,
     val joinUrl: String?, val playbackUrl: String?, val visibility: String,
-    val demoAccess: Boolean
+    val demoAccess: Boolean,
+    val contentId: String = id,
+    val providerContent: Boolean = false
 ) {
     val isPremium: Boolean get() = visibility.equals("paid", ignoreCase = true)
 }
@@ -78,6 +82,7 @@ private fun PublicClassesApp() {
     var live by remember { mutableStateOf(emptyList<ClassItem>()) }
     var recorded by remember { mutableStateOf(emptyList<ClassItem>()) }
     var subjects by remember { mutableStateOf(emptyList<SubjectDto>()) }
+    var batches by remember { mutableStateOf(emptyList<BatchDto>()) }
     var schedules by remember { mutableStateOf(emptyList<ScheduleDto>()) }
     var favourites by remember { mutableStateOf(setOf<String>()) }
     var loading by remember { mutableStateOf(false) }
@@ -91,9 +96,42 @@ private fun PublicClassesApp() {
         error = null
         try {
             val api = ApiServiceFactory.learning(context)
-            live = api.liveClasses().map { it.toClassItem() }
-            recorded = api.recordedClasses().map { it.toClassItem() }
-            subjects = api.subjects()
+            // Preserve legacy API reads while connecting the batch/course/lecture hierarchy.
+            val legacyLive = api.liveClasses().map { it.toClassItem() }
+            val legacyRecorded = api.recordedClasses().map { it.toClassItem() }
+            val legacySubjects = api.subjects()
+            val loadedBatches = api.batches()
+            val loadedCourses = api.courses()
+            val modernRecorded = loadedCourses.flatMap { course ->
+                val batchName = loadedBatches.firstOrNull { it.id == course.batchId }?.title ?: course.title
+                api.courseChapters(course.id).flatMap { chapter ->
+                    api.lectures(chapter.id).map { lecture ->
+                        ClassItem(
+                            id = lecture.id, title = lecture.title, subject = batchName,
+                            teacher = course.title, timeLabel = "", status = "Recorded",
+                            description = lecture.description.orEmpty(), chapterId = chapter.id,
+                            joinUrl = null, playbackUrl = null, visibility = lecture.visibility,
+                            demoAccess = false, contentId = lecture.id, providerContent = true
+                        )
+                    }
+                }
+            }
+            val modernLive = api.liveLearningClasses().map { liveClass ->
+                val course = loadedCourses.firstOrNull { it.id == liveClass.courseId }
+                val batchName = loadedBatches.firstOrNull { it.id == course?.batchId }?.title
+                    ?: course?.title ?: "Live classes"
+                ClassItem(
+                    id = liveClass.id, title = liveClass.title, subject = batchName,
+                    teacher = course?.title.orEmpty(), timeLabel = liveClass.startsAt.orEmpty(),
+                    status = liveClass.status, description = "", chapterId = null,
+                    joinUrl = null, playbackUrl = null, visibility = liveClass.visibility,
+                    demoAccess = false, contentId = liveClass.id, providerContent = true
+                )
+            }
+            live = (legacyLive + modernLive).distinctBy { it.id }
+            recorded = (legacyRecorded + modernRecorded).distinctBy { it.id }
+            batches = loadedBatches
+            subjects = (legacySubjects + loadedBatches.map { SubjectDto(it.id, it.title) }).distinctBy { it.id }
             schedules = api.schedule()
         } catch (e: Exception) {
             error = e.message?.take(140) ?: "Catalogue unavailable."
@@ -114,7 +152,14 @@ private fun PublicClassesApp() {
         chapters = if (selectedSubject == "All") emptyList() else {
             val batch = subjects.firstOrNull { it.name == selectedSubject }
             if (batch == null) emptyList() else runCatching {
-                ApiServiceFactory.learning(context).chapters(batch.id)
+                val api = ApiServiceFactory.learning(context)
+                val legacyChapters = api.chapters(batch.id)
+                val modernChapters = api.courses(batch.id).flatMap { course ->
+                    api.courseChapters(course.id).map { chapter ->
+                        com.example.myandroidapp.data.ChapterDto(chapter.id, batch.id, chapter.title)
+                    }
+                }
+                (legacyChapters + modernChapters).distinctBy { it.id }
             }.getOrDefault(emptyList())
         }
     }
@@ -376,17 +421,34 @@ private fun PublicClassesApp() {
                                     }
                                     Button(
                                         onClick = {
-                                            when {
-                                                item.isPremium && !item.demoAccess ->
-                                                    notice = "Premium Demo is listed, but no authorized demo video is enabled."
-                                                item.playbackUrl?.startsWith("https://") == true ->
-                                                    mediaUrl = item.playbackUrl
-                                                tab == ClassTab.LIVE && item.joinUrl?.startsWith("https://") == true ->
-                                                    runCatching { uriHandler.openUri(item.joinUrl) }
-                                                        .onFailure { notice = "Could not open the published class link." }
-                                                tab == ClassTab.LIVE ->
-                                                    notice = "No authorized live demo link is available."
-                                                else -> notice = "No authorized demo recording is available."
+                                            scope.launch {
+                                                when {
+                                                    item.providerContent || item.isPremium -> {
+                                                        notice = "Checking playback authorization…"
+                                                        try {
+                                                            val session = ApiServiceFactory.learning(context)
+                                                                .createPlaybackSession(PlaybackSessionRequest(item.contentId))
+                                                            if (session.status == "created" &&
+                                                                session.playbackUrl?.startsWith("https://") == true
+                                                            ) {
+                                                                notice = null
+                                                                mediaUrl = session.playbackUrl
+                                                            } else {
+                                                                notice = "Authorized playback session is unavailable."
+                                                            }
+                                                        } catch (_: Exception) {
+                                                            notice = "Playback authorization failed. Sign in and verify access."
+                                                        }
+                                                    }
+                                                    item.playbackUrl?.startsWith("https://") == true ->
+                                                        mediaUrl = item.playbackUrl
+                                                    tab == ClassTab.LIVE && item.joinUrl?.startsWith("https://") == true ->
+                                                        runCatching { uriHandler.openUri(item.joinUrl) }
+                                                            .onFailure { notice = "Could not open the published class link." }
+                                                    tab == ClassTab.LIVE ->
+                                                        notice = "No authorized live demo link is available."
+                                                    else -> notice = "No authorized demo recording is available."
+                                                }
                                             }
                                         },
                                         modifier = Modifier.fillMaxWidth().padding(top = 10.dp),
@@ -396,7 +458,7 @@ private fun PublicClassesApp() {
                                             else Icons.Default.PlayArrow, null)
                                         Spacer(Modifier.width(8.dp))
                                         Text(when {
-                                            item.isPremium && !item.demoAccess -> "Premium Demo unavailable"
+                                            item.providerContent || item.isPremium -> "Verify access and play"
                                             tab == ClassTab.LIVE -> "Open live class"
                                             else -> "Play recording"
                                         })
