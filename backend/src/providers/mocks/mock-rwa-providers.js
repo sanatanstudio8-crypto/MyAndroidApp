@@ -1,11 +1,13 @@
 import { ProviderAuthenticationError, ProviderAuthorizationError, ProviderNotConfiguredError } from "../errors.js";
+import { RwaIdentityProvider, RwaCatalogueProvider, RwaEntitlementProvider, RwaPlaybackProvider, LiveJoinProvider } from "../contracts.js";
 import { accountSessionDto, batchDto, courseDto, chapterDto, lectureDto, liveClassDto, entitlementDto, playbackSessionDto, liveJoinSessionDto } from "../rwa/dtos.js";
 
 const copy = value => structuredClone(value);
 const key = (userId, contentId) => `${userId}:${contentId}`;
 
-export class MockRwaIdentityProvider {
+export class MockRwaIdentityProvider extends RwaIdentityProvider {
   constructor({ accounts = [{ email: "student@example.test", password: "mock-password", accountId: "mock-account-1", userId: "mock-user-1" }] } = {}) {
+    super();
     this.accounts = accounts;
     this.sessions = new Map();
   }
@@ -35,8 +37,9 @@ export class MockRwaIdentityProvider {
   }
 }
 
-export class MockRwaCatalogueProvider {
+export class MockRwaCatalogueProvider extends RwaCatalogueProvider {
   constructor(fixtures = {}) {
+    super();
     this.data = {
       batches: fixtures.batches || [], courses: fixtures.courses || [], chapters: fixtures.chapters || [],
       lectures: fixtures.lectures || [], liveClasses: fixtures.liveClasses || []
@@ -50,8 +53,9 @@ export class MockRwaCatalogueProvider {
   async listLiveClasses() { return this.data.liveClasses.map(liveClassDto); }
 }
 
-export class MockRwaEntitlementProvider {
+export class MockRwaEntitlementProvider extends RwaEntitlementProvider {
   constructor({ accountAccess = {}, courseAccess = {}, lectureAccess = {}, subscriptions = {} } = {}) {
+    super();
     this.accountAccess = accountAccess; this.courseAccess = courseAccess;
     this.lectureAccess = lectureAccess; this.subscriptions = subscriptions;
   }
@@ -62,8 +66,8 @@ export class MockRwaEntitlementProvider {
   async check(userId, contentId) { return this.checkLectureAccess(userId, contentId); }
 }
 
-export class MockRwaPlaybackProvider {
-  constructor({ entitlementProvider, sessions = new Map() } = {}) { this.entitlementProvider = entitlementProvider; this.sessions = sessions; }
+export class MockRwaPlaybackProvider extends RwaPlaybackProvider {
+  constructor({ entitlementProvider, sessions = new Map() } = {}) { super(); this.entitlementProvider = entitlementProvider; this.sessions = sessions; }
   async getLectureDetails(contentId) { return { contentId, status: "mock_metadata_only", providerAuthorization: false }; }
   async createSession(userId, contentId) {
     if (!this.entitlementProvider) throw new ProviderNotConfiguredError("rwa-mock");
@@ -81,8 +85,8 @@ export class MockRwaPlaybackProvider {
   async closeSession(userId, contentId) { return this.sessions.delete(key(userId, contentId)); }
 }
 
-export class MockLiveJoinProvider {
-  constructor({ entitlementProvider, sessions = new Map() } = {}) { this.entitlementProvider = entitlementProvider; this.sessions = sessions; }
+export class MockLiveJoinProvider extends LiveJoinProvider {
+  constructor({ entitlementProvider, sessions = new Map() } = {}) { super(); this.entitlementProvider = entitlementProvider; this.sessions = sessions; }
   async getLiveClassDetails(liveClassId) { return { liveClassId, status: "mock_metadata_only", providerAuthorization: false }; }
   async createJoinSession(userId, liveClassId) {
     if (!this.entitlementProvider) throw new ProviderNotConfiguredError("rwa-mock");
