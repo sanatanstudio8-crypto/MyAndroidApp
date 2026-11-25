@@ -33,7 +33,6 @@ import com.example.myandroidapp.data.ApiServiceFactory
 import com.example.myandroidapp.data.ClassDto
 import com.example.myandroidapp.data.SubjectDto
 import com.example.myandroidapp.data.ScheduleDto
-import com.example.myandroidapp.data.BatchDto
 import com.example.myandroidapp.data.PlaybackSessionRequest
 import com.example.myandroidapp.player.AuthorizedVideoPlayer
 
@@ -82,7 +81,6 @@ private fun PublicClassesApp() {
     var live by remember { mutableStateOf(emptyList<ClassItem>()) }
     var recorded by remember { mutableStateOf(emptyList<ClassItem>()) }
     var subjects by remember { mutableStateOf(emptyList<SubjectDto>()) }
-    var batches by remember { mutableStateOf(emptyList<BatchDto>()) }
     var schedules by remember { mutableStateOf(emptyList<ScheduleDto>()) }
     var favourites by remember { mutableStateOf(setOf<String>()) }
     var loading by remember { mutableStateOf(false) }
@@ -131,7 +129,6 @@ private fun PublicClassesApp() {
             }
             live = (legacyLive + modernLive).distinctBy { it.id }
             recorded = (legacyRecorded + modernRecorded).distinctBy { it.id }
-            batches = loadedBatches
             subjects = (legacySubjects + loadedBatches.map { SubjectDto(it.id, it.title) }).distinctBy { it.id }
             schedules = api.schedule()
         } catch (e: Exception) {
