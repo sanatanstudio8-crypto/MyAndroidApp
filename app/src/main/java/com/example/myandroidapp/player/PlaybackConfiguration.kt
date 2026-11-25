@@ -1,6 +1,9 @@
 package com.example.myandroidapp.player
 
-import java.time.Instant
+import java.text.ParsePosition
+import java.text.SimpleDateFormat
+import java.util.Locale
+import java.util.TimeZone
 
 enum class PlaybackMediaType {
     AUTO,
@@ -40,9 +43,18 @@ data class PlaybackConfiguration(
         PlaybackMediaType.AUTO -> null
     }
 
+    /** Parses ISO-8601 expiry timestamps on the app's minSdk 24. */
     fun isExpired(nowEpochMillis: Long = System.currentTimeMillis()): Boolean {
-        val expiry = expiresAt?.let { runCatching { Instant.parse(it).toEpochMilli() }.getOrNull() }
-            ?: return false
+        val value = expiresAt ?: return false
+        val patterns = listOf("yyyy-MM-dd'T'HH:mm:ss.SSSXXX", "yyyy-MM-dd'T'HH:mm:ssXXX")
+        val expiry = patterns.firstNotNullOfOrNull { pattern ->
+            val parser = SimpleDateFormat(pattern, Locale.US).apply {
+                isLenient = false
+                timeZone = TimeZone.getTimeZone("UTC")
+            }
+            val position = ParsePosition(0)
+            parser.parse(value, position)?.takeIf { position.index == value.length }?.time
+        } ?: return false
         return nowEpochMillis >= expiry
     }
 }
