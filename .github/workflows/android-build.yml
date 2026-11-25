@@ -130,6 +130,8 @@ jobs:
           gradle-version: "8.9"
       - name: Generate wrapper because this repository does not currently contain one
         run: gradle wrapper --gradle-version 8.9
+      - name: Run Android unit tests
+        run: ./gradlew :app:testDebugUnitTest
       - name: Build standard Debug APK
         run: |
           ./gradlew :app:assembleDebug
