@@ -67,3 +67,12 @@ Render's current public pricing page lists paid Postgres starting at **$6/month*
 - Implement and pass PostgreSQL integration tests in CI.
 - Complete staging import and data-integrity comparison.
 - Obtain separate approval for production cutover. Until then, production persistence is **not fixed**.
+
+
+## Implementation update — isolated validation branch
+
+The PostgreSQL runtime has now been implemented on `work/balidan-postgres-validation` without changing the original branch or production configuration. `DATABASE_URL` selects the async `pg` pool, PostgreSQL-specific migrations and PostgreSQL providers; if it is absent, the original SQLite runtime remains selected. PostgreSQL schema migrations are applied one version at a time inside explicit transactions and use the same logical schema versions while retaining their own migration history in the PostgreSQL database.
+
+The backend request handlers now await provider operations and route legacy SQLite queries through a small dialect-aware query boundary. Existing SQLite migrations and providers remain available. GitHub Actions includes a PostgreSQL 16 service and runs the existing SQLite test suite plus PostgreSQL migration/API integration tests. The integration suite verifies migration idempotency, case-insensitive email uniqueness/login, catalogue DTO reads, foreign-key enforcement, and that unknown entitlements do not authorize playback.
+
+This implementation does not provision a production database, import production data, change Render settings, deploy, or switch any live service to PostgreSQL. Production cutover and data migration remain separate tasks requiring an approved database and verified source backup.
