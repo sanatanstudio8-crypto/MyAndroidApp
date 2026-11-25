@@ -83,7 +83,10 @@ export function createApp({db, jwtSecret=process.env.JWT_SECRET, providers={}}={
       const result=await entitlement.check(req.user.sub,contentId);
       if(result.decision!=="granted")return res.status(403).json({error:"Content entitlement is not granted.",entitlement:result});
       const session=await playback.createSession(req.user.sub,contentId);
-      if(!session||session.status!=="created")return res.status(503).json({error:"Authorized playback is not configured."});
+      if(!session||session.status!=="created"||
+        typeof session.playbackUrl!=="string"||!session.playbackUrl.startsWith("https://")) {
+        return res.status(503).json({error:"Authorized playback is not configured."});
+      }
       return res.status(201).json(session);
     } catch(e){next(e);}
   });
