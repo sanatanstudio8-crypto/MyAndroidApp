@@ -18,6 +18,11 @@ interface LearningApi {
     @GET("v1/subjects") suspend fun subjects(): List<SubjectDto>
     @GET("v1/subjects/{subjectId}/chapters") suspend fun chapters(@Path("subjectId") subjectId: String): List<ChapterDto>
     @GET("v1/schedule") suspend fun schedule(): List<ScheduleDto>
+    @GET("v1/demo/catalogue") suspend fun demoCatalogue(): DemoCatalogueDto
+    @GET("v1/demo/entitlements/content/{contentId}") suspend fun demoEntitlement(@Path("contentId") contentId: String): EntitlementDto
+    @POST("v1/demo/playback/sessions") suspend fun createDemoPlaybackSession(@Body request: DemoPlaybackSessionRequest): DemoPlaybackSessionDto
+    @POST("v1/demo/live/sessions") suspend fun createDemoLiveSession(@Body request: DemoLiveJoinRequest): DemoLiveJoinSessionDto
+    @POST("v1/demo/live/sessions/{liveClassId}/leave") suspend fun leaveDemoLiveSession(@Path("liveClassId") liveClassId: String): DemoLiveLeaveDto
     @GET("v1/batches") suspend fun batches(): List<BatchDto>
     @GET("v1/courses") suspend fun courses(@Query("batchId") batchId: String? = null): List<CourseDto>
     @GET("v1/courses/{courseId}") suspend fun course(@Path("courseId") courseId: String): CourseDto
