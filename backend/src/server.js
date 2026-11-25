@@ -2,6 +2,7 @@ import "dotenv/config";
 import crypto from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
+import { pathToFileURL } from "node:url";
 import express from "express";
 import cors from "cors";
 import helmet from "helmet";
@@ -84,7 +85,7 @@ export function createApp({db, jwtSecret=process.env.JWT_SECRET, providers={}}={
   app.use((err,_req,res,_next)=>{if(err.message==="Origin is not allowed by CORS.")return res.status(403).json({error:err.message});return res.status(500).json({error:"Unexpected server error."});});
   return app;
 }
-if(process.env.NODE_ENV!=="test") {
+if(process.argv[1] && import.meta.url===pathToFileURL(process.argv[1]).href) {
   const databaseFile=path.resolve(process.env.DATABASE_FILE||"./data/app.sqlite");
   const db=createDatabase(databaseFile);
   const PORT=Number(process.env.PORT||8080),HOST=process.env.HOST||"0.0.0.0";

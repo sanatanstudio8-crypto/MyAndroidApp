@@ -17,6 +17,8 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: "20"
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
       - run: npm install
       - run: npm run check
       - run: npm test
@@ -30,9 +32,5 @@ jobs:
           distribution: temurin
           java-version: "17"
       - uses: gradle/actions/setup-gradle@v4
-        with:
-          gradle-version: "8.9"
-      - name: Generate wrapper because this repository does not currently contain one
-        run: gradle wrapper --gradle-version 8.9
       - name: Compile Android debug variant (no APK artifact)
         run: ./gradlew :app:compileDebugKotlin -PAPI_BASE_URL="https://myandroidapp-api.onrender.com"

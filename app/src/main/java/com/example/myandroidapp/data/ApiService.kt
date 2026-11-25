@@ -2,7 +2,6 @@ package com.example.myandroidapp.data
 
 import android.content.Context
 import com.example.myandroidapp.BuildConfig
-import com.example.myandroidapp.security.SecureTokenStore
 import okhttp3.OkHttpClient
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
@@ -32,19 +31,12 @@ interface AuthApi {
     @POST("v1/auth/signup") suspend fun signup(@Body request: SignupRequest): AuthResponse
 }
 object ApiServiceFactory {
-    private fun retrofit(context: Context): Retrofit {
+    private fun retrofit(): Retrofit {
         val base = BuildConfig.API_BASE_URL.trim()
         require(base.startsWith("https://")) { "A configured HTTPS catalogue API URL is required." }
-        val tokenStore = SecureTokenStore(context.applicationContext)
-        val client = OkHttpClient.Builder().addInterceptor { chain ->
-            val request = chain.request().newBuilder().apply {
-                tokenStore.readToken()?.takeIf { it.isNotBlank() }?.let { header("Authorization", "Bearer $it") }
-            }.build()
-            chain.proceed(request)
-        }.build()
         return Retrofit.Builder().baseUrl(if (base.endsWith("/")) base else "$base/")
-            .client(client).addConverterFactory(GsonConverterFactory.create()).build()
+            .client(OkHttpClient.Builder().build()).addConverterFactory(GsonConverterFactory.create()).build()
     }
-    fun learning(context: Context): LearningApi = retrofit(context).create(LearningApi::class.java)
-    fun auth(context: Context): AuthApi = retrofit(context).create(AuthApi::class.java)
+    fun learning(context: Context): LearningApi = retrofit().create(LearningApi::class.java)
+    fun auth(context: Context): AuthApi = retrofit().create(AuthApi::class.java)
 }
