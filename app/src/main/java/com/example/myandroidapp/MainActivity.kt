@@ -39,7 +39,7 @@ private enum class CategoryFilter { ALL, FREE, PREMIUM }
 private enum class HomeSection { BATCHES, FAVOURITES }
 private data class ClassItem(
     val id: String, val title: String, val subject: String, val teacher: String,
-    val timeLabel: String, val status: String, val description: String,
+    val timeLabel: String, val status: String, val description: String, val chapterId: String?,
     val joinUrl: String?, val playbackUrl: String?, val visibility: String,
     val demoAccess: Boolean
 ) {
@@ -47,7 +47,7 @@ private data class ClassItem(
 }
 private fun ClassDto.toClassItem() = ClassItem(
     id, title, subject, teacher, startsAt.orEmpty(), status,
-    description.orEmpty(), joinUrl, playbackUrl, visibility, demoAccess
+    description.orEmpty(), chapterId, joinUrl, playbackUrl, visibility, demoAccess
 )
 
 private val pageBg = Color(0xFF191820)
@@ -72,6 +72,8 @@ private fun PublicClassesApp() {
     var category by remember { mutableStateOf(CategoryFilter.ALL) }
     var search by remember { mutableStateOf("") }
     var selectedSubject by remember { mutableStateOf("All") }
+    var selectedChapter by remember { mutableStateOf("All") }
+    var chapters by remember { mutableStateOf(emptyList<com.example.myandroidapp.data.ChapterDto>()) }
     var live by remember { mutableStateOf(emptyList<ClassItem>()) }
     var recorded by remember { mutableStateOf(emptyList<ClassItem>()) }
     var subjects by remember { mutableStateOf(emptyList<SubjectDto>()) }
@@ -104,6 +106,16 @@ private fun PublicClassesApp() {
         }
     }
 
+    LaunchedEffect(selectedSubject, subjects) {
+        selectedChapter = "All"
+        chapters = if (selectedSubject == "All") emptyList() else {
+            val batch = subjects.firstOrNull { it.name == selectedSubject }
+            if (batch == null) emptyList() else runCatching {
+                ApiServiceFactory.learning(context).chapters(batch.id)
+            }.getOrDefault(emptyList())
+        }
+    }
+
     val allClasses = live + recorded
     val current = if (tab == ClassTab.LIVE) live else recorded
     val filtered = current.filter { item ->
@@ -111,6 +123,7 @@ private fun PublicClassesApp() {
             (category == CategoryFilter.FREE && !item.isPremium) ||
             (category == CategoryFilter.PREMIUM && item.isPremium)) &&
         (selectedSubject == "All" || item.subject == selectedSubject) &&
+        (selectedChapter == "All" || item.chapterId == selectedChapter) &&
         (section != HomeSection.FAVOURITES || item.id in favourites) &&
         (search.isBlank() || item.title.contains(search, true) ||
             item.subject.contains(search, true) || item.teacher.contains(search, true) ||
@@ -240,7 +253,7 @@ private fun PublicClassesApp() {
                             Text(if (section == HomeSection.BATCHES) "My Batches" else "Favourite",
                                 color = violet, fontSize = 23.sp, fontWeight = FontWeight.Bold)
                             Spacer(Modifier.weight(1f))
-                            Text("${allClasses.size} lectures", color = muted, fontSize = 12.sp)
+                            Text("${allClasses.size} lectures • ${subjectNames.size} batches", color = muted, fontSize = 12.sp)
                         }
                     }
                     item {
@@ -284,11 +297,22 @@ private fun PublicClassesApp() {
                     item {
                         Row(Modifier.fillMaxWidth().padding(horizontal = 20.dp),
                             verticalAlignment = Alignment.CenterVertically) {
-                            Text("Lectures", color = Color.White, fontSize = 20.sp,
+                            Text(if (selectedSubject == "All") "All Batch Lectures" else "$selectedSubject Lectures", color = Color.White, fontSize = 20.sp,
                                 fontWeight = FontWeight.Bold)
                             Spacer(Modifier.weight(1f))
-                            TextButton(onClick = { selectedSubject = "All" }) {
-                                Text("Clear batch", color = violet)
+                            TextButton(onClick = { selectedSubject = "All"; selectedChapter = "All" }) {
+                                Text("All batches", color = violet)
+                            }
+                        }
+                    }
+                    if (selectedSubject != "All" && chapters.isNotEmpty()) {
+                        item {
+                            Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(horizontal = 18.dp),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                FilterChip(selected = selectedChapter == "All", onClick = { selectedChapter = "All" }, label = { Text("All chapters") })
+                                chapters.forEach { chapter ->
+                                    FilterChip(selected = selectedChapter == chapter.id, onClick = { selectedChapter = chapter.id }, label = { Text(chapter.name) })
+                                }
                             }
                         }
                     }
