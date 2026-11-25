@@ -102,11 +102,12 @@ private fun PublicClassesApp() {
             val legacySubjects = api.subjects()
             val loadedBatches = api.batches()
             val loadedCourses = api.courses()
-            val modernRecorded = loadedCourses.flatMap { course ->
+            val modernRecorded = mutableListOf<ClassItem>()
+            for (course in loadedCourses) {
                 val batchName = loadedBatches.firstOrNull { it.id == course.batchId }?.title ?: course.title
-                api.courseChapters(course.id).flatMap { chapter ->
-                    api.lectures(chapter.id).map { lecture ->
-                        ClassItem(
+                for (chapter in api.courseChapters(course.id)) {
+                    for (lecture in api.lectures(chapter.id)) {
+                        modernRecorded += ClassItem(
                             id = lecture.id, title = lecture.title, subject = batchName,
                             teacher = course.title, timeLabel = "", status = "Recorded",
                             description = lecture.description.orEmpty(), chapterId = chapter.id,
@@ -154,9 +155,10 @@ private fun PublicClassesApp() {
             if (batch == null) emptyList() else runCatching {
                 val api = ApiServiceFactory.learning(context)
                 val legacyChapters = api.chapters(batch.id)
-                val modernChapters = api.courses(batch.id).flatMap { course ->
-                    api.courseChapters(course.id).map { chapter ->
-                        com.example.myandroidapp.data.ChapterDto(chapter.id, batch.id, chapter.title)
+                val modernChapters = mutableListOf<com.example.myandroidapp.data.ChapterDto>()
+                for (course in api.courses(batch.id)) {
+                    for (chapter in api.courseChapters(course.id)) {
+                        modernChapters += com.example.myandroidapp.data.ChapterDto(chapter.id, batch.id, chapter.title)
                     }
                 }
                 (legacyChapters + modernChapters).distinctBy { it.id }
