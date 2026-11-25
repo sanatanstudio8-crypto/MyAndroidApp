@@ -19,7 +19,7 @@ db.exec(`
 CREATE TABLE IF NOT EXISTS users (id TEXT PRIMARY KEY,name TEXT NOT NULL,email TEXT NOT NULL UNIQUE COLLATE NOCASE,password_hash TEXT NOT NULL,created_at TEXT NOT NULL);
 CREATE TABLE IF NOT EXISTS subjects (id TEXT PRIMARY KEY,name TEXT NOT NULL UNIQUE);
 CREATE TABLE IF NOT EXISTS chapters (id TEXT PRIMARY KEY,subject_id TEXT NOT NULL REFERENCES subjects(id) ON DELETE CASCADE,name TEXT NOT NULL);
-CREATE TABLE IF NOT EXISTS classes (id TEXT PRIMARY KEY,title TEXT NOT NULL,subject TEXT NOT NULL,teacher TEXT NOT NULL,description TEXT,starts_at TEXT,status TEXT NOT NULL,type TEXT NOT NULL CHECK(type IN ('live','recorded')),join_url TEXT,playback_url TEXT,visibility TEXT NOT NULL DEFAULT 'paid' CHECK(visibility IN ('free','paid')),demo_access INTEGER NOT NULL DEFAULT 0 CHECK(demo_access IN (0,1)),provider TEXT NOT NULL DEFAULT 'first_party',created_at TEXT NOT NULL);
+CREATE TABLE IF NOT EXISTS classes (id TEXT PRIMARY KEY,title TEXT NOT NULL,subject TEXT NOT NULL,teacher TEXT NOT NULL,description TEXT,starts_at TEXT,status TEXT NOT NULL,type TEXT NOT NULL CHECK(type IN ('live','recorded')),join_url TEXT,playback_url TEXT,visibility TEXT NOT NULL DEFAULT 'paid' CHECK(visibility IN ('free','paid')),demo_access INTEGER NOT NULL DEFAULT 0 CHECK(demo_access IN (0,1)),chapter_id TEXT,provider TEXT NOT NULL DEFAULT 'first_party',created_at TEXT NOT NULL);
 CREATE TABLE IF NOT EXISTS class_entitlements (user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,class_id TEXT NOT NULL REFERENCES classes(id) ON DELETE CASCADE,PRIMARY KEY(user_id,class_id));
 CREATE TABLE IF NOT EXISTS schedules (id TEXT PRIMARY KEY,class_id TEXT NOT NULL REFERENCES classes(id) ON DELETE CASCADE,starts_at TEXT NOT NULL,ends_at TEXT);
 `);
@@ -27,6 +27,9 @@ CREATE TABLE IF NOT EXISTS schedules (id TEXT PRIMARY KEY,class_id TEXT NOT NULL
 const classColumns=db.prepare("PRAGMA table_info(classes)").all().map(column=>column.name);
 if(!classColumns.includes("demo_access")) {
   db.exec("ALTER TABLE classes ADD COLUMN demo_access INTEGER NOT NULL DEFAULT 0 CHECK(demo_access IN (0,1))");
+}
+if(!classColumns.includes("chapter_id")) {
+  db.exec("ALTER TABLE classes ADD COLUMN chapter_id TEXT");
 }
 const app=express(); app.disable("x-powered-by"); app.use(helmet()); app.use(express.json({limit:"32kb"}));
 const origins=(process.env.CORS_ORIGINS||"").split(",").map(v=>v.trim()).filter(Boolean);
@@ -57,7 +60,7 @@ const publicClasses=type=>(_req,res)=>{
   SELECT c.id,c.title,c.subject,c.teacher,c.description,c.starts_at AS startsAt,c.status,
   CASE WHEN c.visibility='free' OR c.demo_access=1 THEN c.join_url ELSE NULL END AS joinUrl,
   CASE WHEN c.visibility='free' OR c.demo_access=1 THEN c.playback_url ELSE NULL END AS playbackUrl,
-  c.visibility,c.demo_access AS demoAccess
+  c.visibility,c.demo_access AS demoAccess,c.chapter_id AS chapterId
   FROM classes c WHERE c.type=? ORDER BY c.starts_at IS NULL,c.starts_at ASC
  `).all(type).map(row=>({...row,demoAccess:Boolean(row.demoAccess)}));
  return res.json(rows);
