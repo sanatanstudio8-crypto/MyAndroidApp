@@ -2,16 +2,33 @@ name: Android and backend checks
 
 on:
   push:
-    branches: [main, feature/auth-backend-player-foundation, work/balidan-provider-architecture]
+    branches: [main, feature/auth-backend-player-foundation, work/balidan-provider-architecture, work/balidan-postgres-validation]
   pull_request:
     branches: [main, feature/auth-backend-player-foundation]
 
 jobs:
   backend-tests:
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_DB: balidan_test
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d balidan_test"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
     defaults:
       run:
         working-directory: backend
+    env:
+      DATABASE_URL: postgres://postgres:postgres@localhost:5432/balidan_test
+      JWT_SECRET: ci-test-secret-with-at-least-thirty-two-characters
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -20,6 +37,8 @@ jobs:
       - run: npm install
       - run: npm run check
       - run: npm test
+      - name: PostgreSQL migrations and API integration tests
+        run: npm run test:postgres
 
   android-compile:
     runs-on: ubuntu-latest
