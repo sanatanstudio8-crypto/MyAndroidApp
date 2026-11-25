@@ -31,7 +31,7 @@ fun DemoVideoPlayer(mediaUrl: String, modifier: Modifier = Modifier) {
             PlayerView(viewContext).apply {
                 useController = true
                 controllerAutoShow = true
-                player = player
+                this.player = player
             }
         },
         update = { it.player = player }
