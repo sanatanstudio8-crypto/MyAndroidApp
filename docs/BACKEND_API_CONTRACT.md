@@ -11,12 +11,15 @@ This contract describes **our own backend**, not an RWA API specification.
 ## GET /v1/classes/live and GET /v1/classes/recorded
 Public endpoints return both Free and Premium class metadata.
 
-Class object fields: `id`, `title`, `subject`, `teacher`, optional `description`, optional `startsAt`, `status`, optional `joinUrl`, optional `playbackUrl`, `visibility` (`free` or `paid`), and `demoAccess` (boolean).
+Class object fields: `id`, `title`, `subject`, `teacher`, optional `description`, optional `startsAt`, `status`, optional `joinUrl`, optional `playbackUrl`, `visibility` (`free` or `paid`), `demoAccess` (boolean), and optional `chapterId`.
 
 For Premium classes, `playbackUrl` and `joinUrl` are returned only when `demoAccess=true`, backed by the server-side `demo_access=1` flag. Otherwise the Premium listing remains visible but no playable URL is provided. Free class URLs are returned as configured by the trusted content administrator.
 
 ## GET /v1/subjects
 Returns `[{ "id": "...", "name": "..." }]`.
+
+## Batch and chapter navigation
+The Android app treats each backend subject as a batch. Selecting a batch requests its chapter list and filters class rows by the optional `chapterId` field. Content administrators must assign each class's `chapter_id` to a chapter belonging to the selected subject for chapter filtering to return matching lectures. Existing rows migrate with a null `chapter_id` and remain visible under the batch's All Chapters selection.
 
 ## GET /v1/subjects/{subjectId}/chapters
 Returns `[{ "id": "...", "subjectId": "...", "name": "..." }]`.
