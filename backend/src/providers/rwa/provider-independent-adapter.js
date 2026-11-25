@@ -112,8 +112,9 @@ class RwaCatalogueAdapter extends RwaCatalogueProvider {
     return mapList(raw, this.normalizers[mapper], mapper).map(dto);
   }
   async listBatches() {
-    const raw = await this.operations.listBatches();
+    ensureFunction(this.operations, "listBatches", "operation");
     ensureFunction(this.normalizers, "batches", "normalizer");
+    const raw = await this.operations.listBatches();
     return mapList(raw, this.normalizers.batches, "batches").map(batchDto);
   }
   async listCourses(batchId) {
