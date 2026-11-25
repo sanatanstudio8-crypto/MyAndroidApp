@@ -55,3 +55,5 @@ jobs:
         run: gradle wrapper --gradle-version 8.9
       - name: Compile Android debug variant (no APK artifact)
         run: ./gradlew :app:compileDebugKotlin -PAPI_BASE_URL="https://myandroidapp-api.onrender.com"
+      - name: Compile opt-in demo mode (no APK artifact)
+        run: ./gradlew :app:compileDebugKotlin -PDEMO_MODE=true -PAPI_BASE_URL="https://myandroidapp-api.onrender.com"
