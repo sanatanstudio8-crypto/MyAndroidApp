@@ -35,7 +35,7 @@ const dbAll = (db,sql,...params) => db.dialect==="postgres" ? db.all(sql,...para
 const dbGet = (db,sql,...params) => db.dialect==="postgres" ? db.get(sql,...params) : db.prepare(sql).get(...params);
 const isUniqueViolation = error => error?.code==="23505" || String(error?.code||"").includes("SQLITE_CONSTRAINT");
 
-export function createApp({db, jwtSecret=process.env.JWT_SECRET, providers={}}={}) {
+export function createApp({db, jwtSecret=process.env.JWT_SECRET, providers={}, demoMode=process.env.DEMO_MODE==="true"}={}) {
   if(!db) throw new Error("A database connection is required.");
   if(typeof jwtSecret!=="string"||jwtSecret.length<32) throw new Error("JWT_SECRET must be configured with at least 32 characters.");
   const postgres=db.dialect==="postgres";
@@ -69,6 +69,27 @@ export function createApp({db, jwtSecret=process.env.JWT_SECRET, providers={}}={
     try { const result=await identity.authenticate({email,password}); return result?res.json(result):res.status(401).json({error:"Email or password is incorrect."}); }
     catch { return res.status(500).json({error:"Login could not be completed."}); }
   });
+  // Demo fixtures are separate from real provider and entitlement records.
+  app.get("/v1/demo/catalogue",(_req,res)=>{
+    if(!demoMode)return res.status(404).json({error:"Demo mode is disabled."});
+    return res.json({mode:"demo",notice:"Sample data only. Not Original RWA content or authorization.",
+      batches:[{id:"demo-batch",title:"DEMO — Sample Batch",name:"DEMO — Sample Batch"}],
+      courses:[{id:"demo-course",batchId:"demo-batch",title:"DEMO — Sample Course",visibility:"paid"}],
+      chapters:[{id:"demo-chapter",courseId:"demo-course",title:"DEMO — Sample Chapter",position:1}],
+      lectures:[{id:"demo-free-lecture",chapterId:"demo-chapter",title:"DEMO — Free Sample Lecture",type:"recorded",visibility:"free",entitlement:"demo_free"},{id:"demo-premium-lecture",chapterId:"demo-chapter",title:"DEMO — Premium Sample Lecture",type:"recorded",visibility:"paid",entitlement:"demo_premium"}],
+      liveClasses:[{id:"demo-live-class",title:"DEMO — Sample Live Class",courseId:"demo-course",status:"scheduled",visibility:"paid",entitlement:"demo_premium"}]});
+  });
+  app.get("/v1/demo/entitlements/content/:contentId",(req,res)=>{
+    if(!demoMode)return res.status(404).json({error:"Demo mode is disabled."});
+    const sample=String(req.params.contentId).startsWith("demo-");
+    return res.json({contentId:req.params.contentId,decision:sample?"demo_granted":"unknown",source:"demo_only",providerAuthorization:false});
+  });
+  app.post("/v1/demo/playback/sessions",(req,res)=>{
+    if(!demoMode)return res.status(404).json({error:"Demo mode is disabled."});
+    const contentId=req.body?.contentId;
+    if(typeof contentId!=="string"||!contentId.startsWith("demo-"))return res.status(403).json({error:"Demo sample content only."});
+    return res.json({contentId,status:"demo_preview",entitlement:"demo_granted",source:"demo_only",providerAuthorization:false,playbackUrl:null});
+  });
   app.get("/v1/batches",async(_req,res,next)=>{try{res.json(await catalogue.listBatches());}catch(e){next(e);}});
   app.get("/v1/courses",async(req,res,next)=>{try{res.json(await catalogue.listCourses(req.query.batchId));}catch(e){next(e);}});
   app.get("/v1/courses/:courseId",async(req,res,next)=>{try{const value=await catalogue.getCourse(req.params.courseId);return value?res.json(value):res.status(404).json({error:"Course not found."});}catch(e){next(e);}});
@@ -93,10 +114,9 @@ export function createApp({db, jwtSecret=process.env.JWT_SECRET, providers={}}={
 
   const publicClasses=type=>async(_req,res,next)=>{
     try {
-      const demoPredicate=postgres?"c.demo_access=TRUE":"c.demo_access=1";
       const sql=`SELECT c.id,c.title,c.subject,c.teacher,c.description,c.starts_at AS "startsAt",c.status,
-        CASE WHEN c.visibility='free' OR ${demoPredicate} THEN c.join_url ELSE NULL END AS "joinUrl",
-        CASE WHEN c.visibility='free' OR ${demoPredicate} THEN c.playback_url ELSE NULL END AS "playbackUrl",
+        CASE WHEN c.visibility='free' THEN c.join_url ELSE NULL END AS "joinUrl",
+        CASE WHEN c.visibility='free' THEN c.playback_url ELSE NULL END AS "playbackUrl",
         c.visibility,c.demo_access AS "demoAccess",c.chapter_id AS "chapterId"
         FROM classes c WHERE c.type=? ORDER BY c.starts_at IS NULL,c.starts_at ASC`;
       const rows=await dbAll(db,sql,type);
