@@ -7,9 +7,12 @@
     "start": "node src/server.js",
     "dev": "node --watch src/server.js",
     "test": "node --test",
-    "check": "node --check src/server.js && node --check src/db/migrations.js && node --check src/providers/contracts.js && node --check src/providers/sqlite-providers.js"
+    "check": "node --check src/server.js && node --check src/db/migrations.js && node --check src/providers/contracts.js && node --check src/providers/sqlite-providers.js && node --check src/db/postgres-database.js && node --check src/db/postgres-migrations.js && node --check src/providers/postgres-providers.js",
+    "test:postgres": "node --test test/postgres.integration.test.js"
   },
-  "engines": { "node": "20.x" },
+  "engines": {
+    "node": "20.x"
+  },
   "dependencies": {
     "better-sqlite3": "^11.8.1",
     "cors": "^2.8.5",
@@ -17,7 +20,10 @@
     "express": "^4.21.2",
     "express-rate-limit": "^7.5.0",
     "helmet": "^8.0.0",
-    "jsonwebtoken": "^9.0.2"
+    "jsonwebtoken": "^9.0.2",
+    "pg": "^8.16.3"
   },
-  "devDependencies": { "supertest": "^7.1.1" }
+  "devDependencies": {
+    "supertest": "^7.1.1"
+  }
 }
