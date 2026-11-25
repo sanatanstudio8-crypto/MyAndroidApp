@@ -39,6 +39,83 @@ jobs:
       - run: npm test
       - name: PostgreSQL migrations and API integration tests
         run: npm run test:postgres
+      - name: Verify deployed DEMO_MODE endpoints (isolated staging only)
+        env:
+          DEMO_API_BASE_URL: https://balidan-rwa-demo-staging.onrender.com
+        run: |
+          node --input-type=module <<'NODE'
+          import assert from "node:assert/strict";
+          const base = process.env.DEMO_API_BASE_URL;
+          const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
+          let health;
+          for (let attempt = 0; attempt < 12; attempt++) {
+            try {
+              health = await fetch(base + "/health");
+              if (health.ok) break;
+            } catch {}
+            await sleep(5000);
+          }
+          assert.ok(health?.ok, "staging health endpoint did not become ready");
+          const call = async (path, options = {}, expected = 200) => {
+            const response = await fetch(base + path, options);
+            assert.equal(response.status, expected, path + " returned " + response.status);
+            return response.status === 204 ? null : response.json();
+          };
+          const catalogue = await call("/v1/demo/catalogue");
+          assert.equal(catalogue.mode, "demo");
+          assert.equal(catalogue.batches.length, 2);
+          assert.equal(catalogue.courses.length, 2);
+          assert.equal(catalogue.chapters.length, 2);
+          assert.equal(catalogue.lectures.length, 2);
+          assert.equal(catalogue.liveClasses.length, 2);
+          for (const [id, decision] of [
+            ["demo-free-lecture", "granted"],
+            ["demo-premium-lecture", "granted"],
+            ["demo-denied-lecture", "denied"],
+            ["demo-expired-lecture", "expired"],
+            ["demo-unknown-lecture", "unknown"]
+          ]) {
+            const result = await call("/v1/demo/entitlements/content/" + id);
+            assert.equal(result.decision, decision);
+            assert.equal(result.source, "demo_only");
+          }
+          for (const id of ["demo-free-lecture", "demo-premium-lecture"]) {
+            const session = await call("/v1/demo/playback/sessions", {
+              method: "POST", headers: { "content-type": "application/json" },
+              body: JSON.stringify({ contentId: id })
+            }, 201);
+            assert.equal(session.status, "demo_preview");
+            assert.equal(session.providerAuthorization, false);
+            assert.ok(["demo-free", "demo-premium"].includes(session.mediaRef));
+            assert.equal(session.playbackUrl, undefined);
+          }
+          for (const id of ["demo-denied-lecture", "demo-expired-lecture", "demo-unknown-lecture"]) {
+            await call("/v1/demo/playback/sessions", {
+              method: "POST", headers: { "content-type": "application/json" },
+              body: JSON.stringify({ contentId: id })
+            }, 403);
+          }
+          for (const id of ["demo-free-live-class", "demo-premium-live-class"]) {
+            const room = await call("/v1/demo/live/sessions", {
+              method: "POST", headers: { "content-type": "application/json" },
+              body: JSON.stringify({ liveClassId: id })
+            }, 201);
+            assert.equal(room.status, "joined");
+            assert.equal(room.roomType, "local_demo");
+            assert.equal(room.providerAuthorization, false);
+            assert.equal(room.joinUrl, undefined);
+            const left = await call("/v1/demo/live/sessions/" + id + "/leave", { method: "POST" });
+            assert.equal(left.status, "left");
+            assert.equal(left.sessionClosed, true);
+          }
+          for (const id of ["demo-denied-live-class", "demo-expired-live-class", "demo-unknown-live-class"]) {
+            await call("/v1/demo/live/sessions", {
+              method: "POST", headers: { "content-type": "application/json" },
+              body: JSON.stringify({ liveClassId: id })
+            }, 403);
+          }
+          console.log("All deployed DEMO_MODE catalogue, entitlement, playback and live endpoints passed.");
+          NODE
 
   android-debug-apks:
     runs-on: ubuntu-latest
