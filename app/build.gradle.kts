@@ -8,6 +8,7 @@ plugins {
 val configuredApiBaseUrl = providers.gradleProperty("API_BASE_URL")
     .orElse("https://myandroidapp-api.onrender.com")
     .get()
+val demoModeEnabled = providers.gradleProperty("DEMO_MODE").orElse("false").get().toBoolean()
 
 android {
     namespace = "com.example.myandroidapp"
@@ -28,6 +29,7 @@ android {
         versionCode = 3
         versionName = "1.2"
         buildConfigField("String", "API_BASE_URL", "\"$configuredApiBaseUrl\"")
+        buildConfigField("boolean", "DEMO_MODE", demoModeEnabled.toString())
     }
     buildFeatures {
         compose = true
