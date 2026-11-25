@@ -40,6 +40,7 @@ import com.example.myandroidapp.data.DemoPlaybackSessionRequest
 import com.example.myandroidapp.player.AuthorizedVideoPlayer
 import com.example.myandroidapp.player.DemoVideoPlayer
 import com.example.myandroidapp.player.DEMO_CC0_SAMPLE_URL
+import com.example.myandroidapp.player.PlaybackMediaType
 
 private enum class ClassTab { LIVE, RECORDED }
 private enum class CategoryFilter { ALL, FREE, PREMIUM }
@@ -92,6 +93,9 @@ private fun PublicClassesApp() {
     var error by remember { mutableStateOf<String?>(null) }
     var notice by remember { mutableStateOf<String?>(null) }
     var mediaUrl by remember { mutableStateOf<String?>(null) }
+    var mediaTitle by remember { mutableStateOf<String?>(null) }
+    var mediaType by remember { mutableStateOf(PlaybackMediaType.AUTO) }
+    var mediaExpiresAt by remember { mutableStateOf<String?>(null) }
     var demoMediaUrl by remember { mutableStateOf<String?>(null) }
     var liveRoom by remember { mutableStateOf<DemoLiveJoinSessionDto?>(null) }
     var menuExpanded by remember { mutableStateOf(false) }
@@ -279,7 +283,8 @@ private fun PublicClassesApp() {
                     Text("Back to lectures", color = Color.White)
                 }
                 AuthorizedVideoPlayer(mediaUrl = mediaUrl!!,
-                    modifier = Modifier.fillMaxWidth().weight(1f))
+                    modifier = Modifier.fillMaxWidth().weight(1f),
+                    title = mediaTitle, mediaType = mediaType, expiresAt = mediaExpiresAt)
             }
         } else {
             Scaffold(
@@ -563,6 +568,14 @@ private fun PublicClassesApp() {
                                                                 session.playbackUrl?.startsWith("https://") == true
                                                             ) {
                                                                 notice = null
+                                                                mediaTitle = item.title
+                                                                mediaType = when (session.protocol?.lowercase()) {
+                                                                    "hls" -> PlaybackMediaType.HLS
+                                                                    "dash" -> PlaybackMediaType.DASH
+                                                                    "progressive", "mp4" -> PlaybackMediaType.PROGRESSIVE
+                                                                    else -> PlaybackMediaType.AUTO
+                                                                }
+                                                                mediaExpiresAt = session.expiresAt
                                                                 mediaUrl = session.playbackUrl
                                                             } else {
                                                                 notice = "Authorized playback session is unavailable."
@@ -571,8 +584,12 @@ private fun PublicClassesApp() {
                                                             notice = "Playback authorization failed. Sign in and verify access."
                                                         }
                                                     }
-                                                    item.playbackUrl?.startsWith("https://") == true ->
+                                                    item.playbackUrl?.startsWith("https://") == true -> {
+                                                        mediaTitle = item.title
+                                                        mediaType = PlaybackMediaType.AUTO
+                                                        mediaExpiresAt = null
                                                         mediaUrl = item.playbackUrl
+                                                    }
                                                     tab == ClassTab.LIVE && item.joinUrl?.startsWith("https://") == true ->
                                                         runCatching { uriHandler.openUri(item.joinUrl) }
                                                             .onFailure { notice = "Could not open the published class link." }
