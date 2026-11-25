@@ -5,7 +5,7 @@ import { CatalogueProvider, IdentityProvider, EntitlementProvider, PlaybackProvi
 export class PostgresCatalogueProvider extends CatalogueProvider {
   constructor(db) { super(); this.db = db; }
   listBatches() { return this.db.all("SELECT id,name AS title,name FROM subjects ORDER BY name"); }
-  listCourses(batchId) { return this.db.all("SELECT id,title,description,visibility,batch_id AS \"batchId\" FROM courses WHERE (? IS NULL OR batch_id=?) ORDER BY title", batchId ?? null, batchId ?? null); }
+  listCourses(batchId) { return batchId ? this.db.all("SELECT id,title,description,visibility,batch_id AS \"batchId\" FROM courses WHERE batch_id=? ORDER BY title", batchId) : this.db.all("SELECT id,title,description,visibility,batch_id AS \"batchId\" FROM courses ORDER BY title"); }
   getCourse(id) { return this.db.get("SELECT id,title,description,visibility,batch_id AS \"batchId\" FROM courses WHERE id=?", id).then(row => row ?? null); }
   listChapters(courseId) { return this.db.all("SELECT id,course_id AS \"courseId\",title,position FROM course_chapters WHERE course_id=? ORDER BY position,title", courseId); }
   listLectures(chapterId,type="recorded") { return this.db.all("SELECT id,chapter_id AS \"chapterId\",title,description,lecture_type AS type,visibility FROM lectures WHERE chapter_id=? AND lecture_type=? ORDER BY title", chapterId, type); }
