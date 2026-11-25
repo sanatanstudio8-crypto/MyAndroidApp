@@ -71,6 +71,19 @@ test("PostgreSQL migrations, constraints, providers and API integration", { skip
       .set("Authorization", "Bearer " + token)
       .send({ contentId: "pg-lecture-1" }).expect(403);
 
+    const demoApp = createApp({ db, jwtSecret: secret, demoMode: true });
+    const demoEntitlement = await request(demoApp)
+      .get("/v1/demo/entitlements/content/demo-premium-lecture").expect(200);
+    assert.equal(demoEntitlement.body.decision, "demo_granted");
+    assert.equal(demoEntitlement.body.providerAuthorization, false);
+    const demoPreview = await request(demoApp).post("/v1/demo/playback/sessions")
+      .send({ contentId: "demo-premium-lecture" }).expect(200);
+    assert.equal(demoPreview.body.status, "demo_preview");
+    assert.equal(demoPreview.body.playbackUrl, null);
+    await request(demoApp).post("/v1/playback/sessions")
+      .set("Authorization", "Bearer " + token)
+      .send({ contentId: "demo-premium-lecture" }).expect(403);
+
     await assert.rejects(
       db.run("INSERT INTO course_chapters(id,course_id,title,position) VALUES(?,?,?,?)", "bad-chapter", "missing-course", "Invalid", 0),
       error => error.code === "23503"
