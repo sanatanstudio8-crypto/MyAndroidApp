@@ -75,12 +75,14 @@ test("PostgreSQL migrations, constraints, providers and API integration", { skip
     const demoApp = createApp({ db, jwtSecret: secret, demoMode: true });
     const demoEntitlement = await request(demoApp)
       .get("/v1/demo/entitlements/content/demo-premium-lecture").expect(200);
-    assert.equal(demoEntitlement.body.decision, "demo_granted");
-    assert.equal(demoEntitlement.body.providerAuthorization, false);
+    assert.equal(demoEntitlement.body.decision, "granted");
+    assert.equal(demoEntitlement.body.source, "demo_only");
     const demoPreview = await request(demoApp).post("/v1/demo/playback/sessions")
-      .send({ contentId: "demo-premium-lecture" }).expect(200);
+      .send({ contentId: "demo-premium-lecture" }).expect(201);
     assert.equal(demoPreview.body.status, "demo_preview");
-    assert.equal(demoPreview.body.playbackUrl, null);
+    assert.equal(demoPreview.body.mediaRef, "demo-premium");
+    assert.equal(demoPreview.body.playbackUrl, undefined);
+    assert.equal(demoPreview.body.providerAuthorization, false);
     await request(demoApp).post("/v1/playback/sessions")
       .set("Authorization", "Bearer " + token)
       .send({ contentId: "demo-premium-lecture" }).expect(403);
