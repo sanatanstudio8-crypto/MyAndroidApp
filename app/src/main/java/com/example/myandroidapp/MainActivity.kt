@@ -94,6 +94,34 @@ private fun PublicClassesApp() {
         error = null
         try {
             val api = ApiServiceFactory.learning(context)
+            if (BuildConfig.DEMO_MODE) {
+                subjects = listOf(SubjectDto("demo-batch", "DEMO — Sample Batch"))
+                live = listOf(ClassItem(
+                    id = "demo-live-class", title = "DEMO — Sample Live Class",
+                    subject = "DEMO — Sample Batch", teacher = "DEMO — Sample Course",
+                    timeLabel = "", status = "Scheduled • DEMO", description = "Sample live-class card only.",
+                    chapterId = null, joinUrl = null, playbackUrl = null, visibility = "paid",
+                    demoAccess = true, contentId = "demo-live-class"
+                ))
+                recorded = listOf(
+                    ClassItem(
+                        id = "demo-free-lecture", title = "DEMO — Free Sample Lecture",
+                        subject = "DEMO — Sample Batch", teacher = "DEMO — Sample Course",
+                        timeLabel = "", status = "Recorded • DEMO", description = "Sample free-content UI flow.",
+                        chapterId = "demo-chapter", joinUrl = null, playbackUrl = null,
+                        visibility = "free", demoAccess = false, contentId = "demo-free-lecture"
+                    ),
+                    ClassItem(
+                        id = "demo-premium-lecture", title = "DEMO — Premium Sample Lecture",
+                        subject = "DEMO — Sample Batch", teacher = "DEMO — Sample Course",
+                        timeLabel = "", status = "Recorded • DEMO", description = "Sample Premium UI flow; not a real subscription.",
+                        chapterId = "demo-chapter", joinUrl = null, playbackUrl = null,
+                        visibility = "paid", demoAccess = true, contentId = "demo-premium-lecture"
+                    )
+                )
+                schedules = emptyList()
+                return
+            }
             // Preserve legacy API reads while connecting the batch/course/lecture hierarchy.
             val legacyLive = api.liveClasses().map { it.toClassItem() }
             val legacyRecorded = api.recordedClasses().map { it.toClassItem() }
@@ -149,7 +177,9 @@ private fun PublicClassesApp() {
         selectedChapter = "All"
         chapters = if (selectedSubject == "All") emptyList() else {
             val batch = subjects.firstOrNull { it.name == selectedSubject }
-            if (batch == null) emptyList() else runCatching {
+            if (BuildConfig.DEMO_MODE) {
+                listOf(com.example.myandroidapp.data.ChapterDto("demo-chapter", "demo-batch", "DEMO — Sample Chapter"))
+            } else if (batch == null) emptyList() else runCatching {
                 val api = ApiServiceFactory.learning(context)
                 val legacyChapters = api.chapters(batch.id)
                 val modernChapters = mutableListOf<com.example.myandroidapp.data.ChapterDto>()
@@ -257,6 +287,13 @@ private fun PublicClassesApp() {
                             IconButton(onClick = { scope.launch { refresh() } }) {
                                 Icon(Icons.Default.Refresh, "Refresh", tint = Color.White)
                             }
+                        }
+                    }
+                    if (BuildConfig.DEMO_MODE) {
+                        item {
+                            Text("DEMO MODE • Sample data only • No Original RWA authorization or playback",
+                                color = Color(0xFFFFD180), fontWeight = FontWeight.Bold,
+                                modifier = Modifier.padding(horizontal = 20.dp))
                         }
                     }
                     item {
@@ -422,6 +459,11 @@ private fun PublicClassesApp() {
                                         onClick = {
                                             scope.launch {
                                                 when {
+                                                    BuildConfig.DEMO_MODE -> {
+                                                        notice = if (item.isPremium)
+                                                            "DEMO ONLY — sample Premium entitlement. Original RWA access is not granted."
+                                                        else "DEMO ONLY — sample Free flow. No media URL is configured."
+                                                    }
                                                     item.providerContent || item.isPremium -> {
                                                         notice = "Checking playback authorization…"
                                                         try {
