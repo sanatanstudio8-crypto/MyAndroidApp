@@ -11,15 +11,17 @@ This is the app's own learning-data service. It is not an RWA endpoint proxy and
 
 The API binds to localhost by default. Set `HOST=0.0.0.0` behind a properly configured HTTPS reverse proxy. Do not expose the Node process directly to the public internet.
 
-## College demo mode
-- The Android demo opens directly to the public lecture catalogue; no account login is required.
-- The catalogue displays both Free and Premium lecture metadata.
-- Premium rows are labelled in the app. A Premium video URL is returned only when an administrator explicitly sets `demo_access=1` for that class.
-- Free content and Premium Demo content must be owned by the project or separately licensed for this demonstration.
-- Do not copy RWA content or bypass any third-party login, payment, entitlement, or DRM mechanism.
+## Isolated demo mode
+- Opt in to the Android sample UI at compile time with `-PDEMO_MODE=true`; the default is `false`.
+- Demo mode displays clearly labelled sample Free, Premium, recorded and live-class cards without loading real-provider catalogue data.
+- Demo buttons show an explanatory notice only. They do not open a player or a live meeting.
+- Backend demo routes are available only when server-side `DEMO_MODE=true`. They return synthetic metadata and `demo_granted` / `demo_preview` markers, never a media URL.
+- Demo grants are not written to `entitlement_checks` and are not consulted by real entitlement or playback endpoints.
+- The legacy `classes.demo_access` flag is display metadata only; it never exposes Premium join or playback URLs.
+- Demo entitlements are not Original RWA authorization and must never be described as real Premium access.
 
 ## Content administration
-The database starts empty. Populate it only through a trusted administrative process after verifying ownership/licensing and demo playback rights. For a Premium class, set `visibility='paid'`; set `demo_access=1` only for content specifically authorized for this demo. Keep media URLs HTTPS and point them to authorized demonstration hosting. No public endpoint changes these flags.
+The database starts empty. Populate it only through a trusted administrative process after verifying ownership/licensing and playback rights. Real Premium playback requires an independent real-provider entitlement decision and a provider-issued session. Keep provider credentials server-side. No demo route changes real entitlement records.
 
 ## Security
 - Login/signup endpoints remain available for future non-demo use, but are not required by the current Android demo.
