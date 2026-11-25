@@ -39,6 +39,7 @@ import com.example.myandroidapp.data.DemoLiveJoinSessionDto
 import com.example.myandroidapp.data.DemoPlaybackSessionRequest
 import com.example.myandroidapp.player.AuthorizedVideoPlayer
 import com.example.myandroidapp.player.DemoVideoPlayer
+import com.example.myandroidapp.player.DEMO_CC0_SAMPLE_URL
 
 private enum class ClassTab { LIVE, RECORDED }
 private enum class CategoryFilter { ALL, FREE, PREMIUM }
@@ -91,7 +92,7 @@ private fun PublicClassesApp() {
     var error by remember { mutableStateOf<String?>(null) }
     var notice by remember { mutableStateOf<String?>(null) }
     var mediaUrl by remember { mutableStateOf<String?>(null) }
-    var demoMediaResource by remember { mutableStateOf<Int?>(null) }
+    var demoMediaUrl by remember { mutableStateOf<String?>(null) }
     var liveRoom by remember { mutableStateOf<DemoLiveJoinSessionDto?>(null) }
     var menuExpanded by remember { mutableStateOf(false) }
 
@@ -264,12 +265,12 @@ private fun PublicClassesApp() {
                     Text("Leave demo room")
                 }
             }
-        } else if (demoMediaResource != null) {
+        } else if (demoMediaUrl != null) {
             Column(Modifier.fillMaxSize().background(Color.Black)) {
-                TextButton(onClick = { demoMediaResource = null }) {
+                TextButton(onClick = { demoMediaUrl = null }) {
                     Text("Back to lectures", color = Color.White)
                 }
-                DemoVideoPlayer(resourceId = demoMediaResource!!,
+                DemoVideoPlayer(mediaUrl = demoMediaUrl!!,
                     modifier = Modifier.fillMaxWidth().weight(1f))
             }
         } else if (mediaUrl != null) {
@@ -535,16 +536,15 @@ private fun PublicClassesApp() {
                                                         try {
                                                             val session = ApiServiceFactory.learning(context)
                                                                 .createDemoPlaybackSession(DemoPlaybackSessionRequest(item.contentId))
-                                                            val resource = when (session.mediaRef) {
-                                                                "demo-free" -> R.raw.demo_free_lesson
-                                                                "demo-premium" -> R.raw.demo_premium_lesson
-                                                                else -> 0
+                                                            val approvedMedia = when (session.mediaRef) {
+                                                                "demo-free", "demo-premium" -> DEMO_CC0_SAMPLE_URL
+                                                                else -> null
                                                             }
-                                                            if (session.status == "demo_preview" && resource != 0 &&
-                                                                !session.providerAuthorization
+                                                            if (session.status == "demo_preview" && approvedMedia != null &&
+                                                                session.source == "demo_only" && !session.providerAuthorization
                                                             ) {
                                                                 notice = null
-                                                                demoMediaResource = resource
+                                                                demoMediaUrl = approvedMedia
                                                             } else {
                                                                 notice = "Demo playback authorization was not granted."
                                                             }
