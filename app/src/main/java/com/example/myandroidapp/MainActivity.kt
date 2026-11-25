@@ -134,7 +134,12 @@ private fun PublicClassesApp() {
     }
     val subjectNames = (subjects.map { it.name } + allClasses.map { it.subject })
         .filter { it.isNotBlank() }.distinct().sorted()
-    val batchCounts = allClasses.groupingBy { it.subject }.eachCount()
+    val categoryClasses = allClasses.filter { item ->
+        category == CategoryFilter.ALL ||
+            (category == CategoryFilter.FREE && !item.isPremium) ||
+            (category == CategoryFilter.PREMIUM && item.isPremium)
+    }
+    val batchCounts = categoryClasses.groupingBy { it.subject }.eachCount()
 
     MaterialTheme(colorScheme = darkColorScheme(
         primary = violet, secondary = violet, background = pageBg, surface = panel,
@@ -262,7 +267,7 @@ private fun PublicClassesApp() {
                     item {
                         Column(Modifier.padding(horizontal = 16.dp),
                             verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                            val cards = listOf("All" to allClasses.size) +
+                            val cards = listOf("All" to categoryClasses.size) +
                                 subjectNames.map { it to (batchCounts[it] ?: 0) }
                             cards.chunked(2).forEach { pair ->
                                 Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
