@@ -68,7 +68,7 @@ The APK exposes batch/course screens and course-shaped model types. The DEX stri
 ### 3.2 Chapters, topics and recorded lectures
 
 Static references:
-- Activities/fragments: `FolderChapterLayer`, `FolderCourseContentsActivity`, `FolderCourseDetailActivity`, `FreeCourseRecordActivity`, `FreeCourseTopicActivity`, `PaidCourseRecordActivity`, `PaidCourseTopicActivity`, `PaidCourseConceptActivity`, `FolderCourseContentsFragment`, `FolderCourseContentsFragment`.
+- Activities/fragments: `FolderChapterLayer`, `FolderCourseContentsActivity`, `FolderCourseDetailActivity`, `FreeCourseRecordActivity`, `FreeCourseTopicActivity`, `PaidCourseRecordActivity`, `PaidCourseTopicActivity`, `PaidCourseConceptActivity`, `FolderCourseContentsFragment`.
 - Models: `ChapterData`, `ChapterDataResponseModel`, `FolderCourseContentsModel`, `FolderCourseContentsResponseModel`, `AllTopicModel`, `AllTopicResponse`, `AllRecordModel`, `AllRecordResponse`, `RecordedUpcomingDataModel`, `RecordedUpcomingResponseModel`, `VideoDetailsResponseModel`, `Video`, `VideoUiModel`, `CourseModel`, `CourseTreeCourse`.
 - ViewModels: `CourseViewModel`, `FolderCourseViewModel`, `FreeCoursesViewModel`, `RecordedViewModel`, `RecordedUpcomingViewModel`.
 - Resource names include `activity_folder_courses_recorded.xml`, `activity_folder_course_detail.xml`, `folder_course_content_video.xml`, `folder_course_content_video_revamp.xml`, `folder_course_content_upcoming_video.xml`, `fragment_new_video_course.xml`, and player layouts.
@@ -91,7 +91,7 @@ The APK contains separate Free/Paid course/record screens and a free-content rou
 Static references:
 - Activities/fragments: `LivePlayer1Activity`, `LivePlayer2Activity`, `ExoLiveActivity`, `LivePaidActivity`, `LiveInteractiveActivity`, `NavigationLiveClassActivity`, `PreviousLiveActivity`, `WebinarPlayerActivity`, `LiveClassesFragment`, `LiveClassFragment`, `NavigationLiveClassFragment`, `FragmentLiveClassesList`, `FragmentLiveClassYoutubePaid`, `FragmentLiveClassYoutubeUnpaid`.
 - ViewModels: `LiveClassesViewModel`, `LiveStreamingViewModel`, `LiveUpcomingViewModel`, `NavigationLiveClassViewModel`, `FreeCoursesViewModel`.
-- Models: `ModelLiveClassesData`, `ModelLiveClassesResponse`, `LiveClassSectionModel`, `LiveStreamModel`, `LiveVideoModel`, `LiveUpcomingModel`, `LiveUpcomingRecordedModel`, `LiveUpcomingResponse`, `PreviousLiveVideoResponseModel`, `NavigationLiveClassDataModel`, `NavigationLiveClassModel`, `LiveVideoDetailsResponseModel`, `LivestreamLink`, `HlsQualityModel`, `LiveInteractiveClassModel`, `LiveInteractiveGenerateTokenModel`, `LiveInteractiveTokenModel`.
+- Models: `ModelLiveClassesData`, `ModelLiveClassesResponse`, `LiveClassSectionModel`, `LiveStreamModel`, `LiveVideoModel`, `LiveUpcomingRecordedModel`, `LiveUpcomingResponse`, `LiveUpcomingRecordedResponse`, `PreviousLiveVideoResponseModel`, `NavigationLiveClassDataModel`, `NavigationLiveClassModel`, `LiveVideoDetailsResponseModel`, `LivestreamLink`, `HlsQualityModel`, `LiveInteractiveClassModel`, `LiveInteractiveGenerateTokenModel`, `LiveInteractiveTokenModel`.
 - Resource names include `activity_exo_live.xml`, `activity_exo_live_new.xml`, `activity_live_player_1.xml`, `activity_live_player_2.xml`, `fragment_live_classes.xml`, `item_live_classes_row.xml`, `item_live_classes_row_revamp.xml`, and `fragment_navigation_live_class.xml`.
 
 Static route-like strings:
@@ -108,7 +108,7 @@ The app has distinct live-class listing/player classes and live-video detail mod
 - AndroidX Media3 / ExoPlayer classes, including `androidx.media3.exoplayer.ExoPlayer`, `androidx.media3.ui.PlayerView` and Media3 DRM classes.
 - Player activity variants: `ExoPlayerDrmActivity`, `CustomExoPlayerActivity`, `ExoActivity`, `Exo2Activity`, `ExoLiveActivity`, `HlsOfflinePlayerActivity`, `LivePlayer1Activity`, `LivePlayer2Activity`, plus WebView/YouTube player activities.
 - Static media markers: `.m3u8`, `.mpd`, `drm`, `drmLicenseUrl`, `MpdDrmLinksResponse`, `DrmPersistentTokenData`, `DrmPersistentTokenResponse`, `get/get_mpd_drm_links`, `get/get_drm_peristent_token`, `post/generate_browserstream_token`, `post/generate_key_session`.
-- DRM vendor references: `com.appx.core.service.PallyConDownloadService`, `com.doverunner.widevine.service.DrmDownloadService`, `com.doverunner.widevine.sdk.DrWvSDK`, and `com.doverunner.widevine.exception.WvLicenseServerException`.
+- DRM vendor references: `com.appx.core.service.PallyConDownloadService`, `com.doverunner.widevine.service.DrmDownloadService`, `com.doverunner.widevine.sdk.DrWvSDK$Companion` (the companion reference; the base SDK class is not separately exposed under that name in the DEX class table), and `com.doverunner.widevine.exception.WvLicenseServerException`.
 
 **What this does and does not prove:** the APK statically includes Media3/ExoPlayer, HLS/DASH markers and PallyCon/DOVERUNNER Widevine-related components. It is not proof that every lecture uses DRM, that all media use one player, that a particular license URL is current, or that a client can lawfully create a playable session. No license exchange was attempted and no DRM material is reproduced here.
 
