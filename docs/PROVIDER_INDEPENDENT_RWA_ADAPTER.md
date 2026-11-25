@@ -39,3 +39,9 @@ Use `configurationStatus` to inspect missing operation and normalizer callbacks.
 The current Balidan server continues using its existing local providers and disabled Original RWA providers. This adapter is not wired into `createApp`, does not alter production configuration, and does not create access to Original RWA content. Once the official contracts arrive, a separately reviewed composition module can inject the approved transport/normalizers into the server provider slots.
 
 Playback DTO normalization rejects non-HTTPS URLs, but that check is not DRM implementation or proof of provider authorization. A provider-issued session must be verified server-side before any playback data is returned. Live join credentials and URLs must likewise come only from an authorized provider session.
+
+## Server dependency injection (disabled by default)
+
+`createApp({ providers: { originalRwa } })` accepts an explicit provider bundle. The server exposes the selected bundle at `app.locals.originalRwaProviders` for controlled backend composition. It accepts the injected bundle only when both `enabled === true` and `configurationStatus.ready === true`; otherwise it installs the disabled provider implementations. No Original RWA routes are activated by this wiring, and existing Balidan/demo routes continue using their existing providers.
+
+For a future authorized integration, create the adapter in a server-only composition module (not in the Android app), supply the official operation callbacks and normalizers there, then pass `adapter.toProviderBundle({ enabled: true })` to `createApp`. The adapter returns `enabled: true` only when every required operation and normalizer exists. The server must remain configured without this bundle until sandbox verification and security review are complete. Never load provider secrets from client build arguments or commit them to the repository.
