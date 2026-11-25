@@ -15,7 +15,7 @@ test("normalized DTOs validate required identity fields and fail closed on unkno
   assert.equal(batchDto({ id: "b1", title: "Batch" }).name, "Batch");
   assert.equal(courseDto({ id: "c1", title: "Course", visibility: "unexpected" }).visibility, "paid");
   assert.equal(entitlementDto({ contentId: "l1", decision: "demo_granted" }).decision, "unknown");
-  assert.equal(playbackSessionDto({ contentId: "l1", status: "created", playbackUrl: "http://insecure.test/a" }).playbackUrl, "http://insecure.test/a");
+  assert.throws(() => playbackSessionDto({ contentId: "l1", status: "created", playbackUrl: "http://insecure.test/a" }), ProviderContractError);
   assert.throws(() => batchDto({ id: "b1" }), ProviderContractError);
 });
 
