@@ -22,3 +22,41 @@ data class LiveClassDto(val id: String, val title: String, val courseId: String?
 data class EntitlementDto(val contentId: String, val decision: String)
 data class PlaybackSessionRequest(val contentId: String)
 data class PlaybackSessionDto(val id: String, val contentId: String, val status: String, val protocol: String? = null, val playbackUrl: String? = null, val expiresAt: String? = null)
+
+data class DemoCatalogueDto(
+    val mode: String,
+    val notice: String,
+    val batches: List<BatchDto>,
+    val courses: List<CourseDto>,
+    val chapters: List<CourseChapterDto>,
+    val lectures: List<LectureDto>,
+    val liveClasses: List<LiveClassDto>
+)
+data class DemoPlaybackSessionRequest(val contentId: String)
+data class DemoPlaybackSessionDto(
+    val id: String,
+    val contentId: String,
+    val status: String,
+    val mediaRef: String?,
+    val expiresAt: String?,
+    val source: String,
+    val providerAuthorization: Boolean
+)
+data class DemoLiveJoinRequest(val liveClassId: String)
+data class DemoLiveJoinSessionDto(
+    val id: String,
+    val liveClassId: String,
+    val title: String,
+    val status: String,
+    val roomType: String,
+    val joinedAt: String,
+    val expiresAt: String,
+    val source: String,
+    val providerAuthorization: Boolean
+)
+data class DemoLiveLeaveDto(
+    val liveClassId: String,
+    val status: String,
+    val sessionClosed: Boolean,
+    val source: String
+)
