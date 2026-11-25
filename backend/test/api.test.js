@@ -66,7 +66,7 @@ test("playback does not expose URLs when no authorized provider is configured",a
   db.close();
 });
 
-test("demo entitlement cannot authorize real provider playback",async()=>{
+test("isolated demo media and live rooms use server fixtures and cannot authorize real provider playback",async()=>{
   let playbackCalls=0;
   const db=new Database(":memory:"); db.pragma("foreign_keys=ON"); migrateDatabase(db);
   const providers={
@@ -76,14 +76,45 @@ test("demo entitlement cannot authorize real provider playback",async()=>{
   const demoApp=createApp({db,jwtSecret:secret,providers,demoMode:true});
   const catalogue=await request(demoApp).get("/v1/demo/catalogue").expect(200);
   assert.equal(catalogue.body.mode,"demo");
-  assert.equal(catalogue.body.lectures.find(x=>x.id==="demo-premium-lecture").entitlement,"demo_premium");
-  const demoGrant=await request(demoApp).get("/v1/demo/entitlements/content/demo-premium-lecture").expect(200);
-  assert.equal(demoGrant.body.decision,"demo_granted");
-  assert.equal(demoGrant.body.providerAuthorization,false);
-  const preview=await request(demoApp).post("/v1/demo/playback/sessions").send({contentId:"demo-premium-lecture"}).expect(200);
-  assert.equal(preview.body.status,"demo_preview");
-  assert.equal(preview.body.playbackUrl,null);
-  assert.equal(preview.body.providerAuthorization,false);
+  assert.equal(catalogue.body.batches.length,2);
+  assert.equal(catalogue.body.courses.length,2);
+  assert.equal(catalogue.body.chapters.length,2);
+  assert.equal(catalogue.body.lectures.find(x=>x.id==="demo-premium-lecture").visibility,"paid");
+  assert.equal(catalogue.body.liveClasses.length,2);
+
+  for (const [contentId,decision] of [
+    ["demo-free-lecture","granted"],["demo-premium-lecture","granted"],
+    ["demo-denied-lecture","denied"],["demo-expired-lecture","expired"],
+    ["demo-not-known","unknown"]
+  ]) {
+    const response=await request(demoApp).get("/v1/demo/entitlements/content/"+contentId).expect(200);
+    assert.equal(response.body.decision,decision);
+    assert.equal(response.body.source,"demo_only");
+  }
+  const free=await request(demoApp).post("/v1/demo/playback/sessions").send({contentId:"demo-free-lecture"}).expect(201);
+  assert.equal(free.body.status,"demo_preview");
+  assert.equal(free.body.mediaRef,"demo-free");
+  assert.equal(free.body.playbackUrl,undefined);
+  const premium=await request(demoApp).post("/v1/demo/playback/sessions").send({contentId:"demo-premium-lecture"}).expect(201);
+  assert.equal(premium.body.mediaRef,"demo-premium");
+  assert.equal(premium.body.providerAuthorization,false);
+  for (const contentId of ["demo-denied-lecture","demo-expired-lecture","demo-not-known"]) {
+    await request(demoApp).post("/v1/demo/playback/sessions").send({contentId}).expect(403);
+  }
+
+  const freeRoom=await request(demoApp).post("/v1/demo/live/sessions").send({liveClassId:"demo-free-live-class"}).expect(201);
+  assert.equal(freeRoom.body.status,"joined");
+  assert.equal(freeRoom.body.roomType,"local_demo");
+  assert.equal(freeRoom.body.joinUrl,undefined);
+  const premiumRoom=await request(demoApp).post("/v1/demo/live/sessions").send({liveClassId:"demo-premium-live-class"}).expect(201);
+  assert.equal(premiumRoom.body.status,"joined");
+  for (const liveClassId of ["demo-denied-live-class","demo-expired-live-class","demo-unknown-live-class"]) {
+    await request(demoApp).post("/v1/demo/live/sessions").send({liveClassId}).expect(403);
+  }
+  const leave=await request(demoApp).post("/v1/demo/live/sessions/demo-free-live-class/leave").expect(200);
+  assert.equal(leave.body.status,"left");
+  assert.equal(leave.body.sessionClosed,true);
+
   const token=jwt.sign({sub:"demo-user"},secret,{issuer:"balidan-rwa-api"});
   const real=await request(demoApp).post("/v1/playback/sessions")
     .set("Authorization",`Bearer ${token}`).send({contentId:"demo-premium-lecture"}).expect(403);
@@ -92,6 +123,7 @@ test("demo entitlement cannot authorize real provider playback",async()=>{
   const productionApp=createApp({db,jwtSecret:secret,providers,demoMode:false});
   const disabled=await request(productionApp).get("/v1/demo/catalogue").expect(404);
   assert.equal(disabled.body.error,"Demo mode is disabled.");
+  await request(productionApp).post("/v1/demo/playback/sessions").send({contentId:"demo-premium-lecture"}).expect(404);
   db.close();
 });
 
