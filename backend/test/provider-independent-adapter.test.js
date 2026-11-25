@@ -9,6 +9,10 @@ test("adapter reports missing official contracts without guessing provider schem
   assert.ok(adapter.configurationStatus.missingOperations.includes("authenticate"));
   await assert.rejects(() => adapter.authenticate({}), ProviderNotConfiguredError);
   await assert.rejects(() => adapter.catalogue.listBatches(), ProviderNotConfiguredError);
+  await assert.rejects(() => adapter.catalogue.listCourses("course-batch"), ProviderNotConfiguredError);
+  await assert.rejects(() => adapter.catalogue.listChapters("course-1"), ProviderNotConfiguredError);
+  await assert.rejects(() => adapter.catalogue.listLectures("chapter-1", "recorded"), ProviderNotConfiguredError);
+  await assert.rejects(() => adapter.catalogue.listLiveClasses(), ProviderNotConfiguredError);
   await assert.rejects(() => adapter.entitlement.checkLectureAccess("u", "l"), ProviderNotConfiguredError);
   await assert.rejects(() => adapter.playback.createSession("u", "l"), ProviderNotConfiguredError);
   await assert.rejects(() => adapter.liveJoin.createJoinSession("u", "live"), ProviderNotConfiguredError);
