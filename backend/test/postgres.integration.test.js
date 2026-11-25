@@ -10,7 +10,8 @@ const secret = "postgres-integration-test-secret-at-least-32-characters";
 test("PostgreSQL migrations, constraints, providers and API integration", { skip: !process.env.DATABASE_URL }, async () => {
   const db = await createPostgresDatabase(process.env.DATABASE_URL);
   try {
-    assert.equal(await migratePostgres(db), 2);
+    const concurrentMigrationResults = await Promise.all([migratePostgres(db), migratePostgres(db)]);
+    assert.deepEqual(concurrentMigrationResults, [2, 2]);
     assert.equal(await migratePostgres(db), 2);
 
     await db.exec("TRUNCATE playback_sessions, entitlement_checks, provider_content_metadata, live_classes, lectures, course_chapters, courses, provider_sessions, provider_accounts, providers, schedules, class_entitlements, classes, chapters, subjects, users CASCADE");
