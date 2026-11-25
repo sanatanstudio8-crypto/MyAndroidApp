@@ -55,3 +55,29 @@ test("playback does not expose URLs when no authorized provider is configured",a
   assert.equal(response.body.playbackUrl,undefined);
   db.close();
 });
+
+test("explicitly denied Premium entitlement never reaches the playback provider",async()=>{
+  let playbackCalls=0;
+  const {db,app}=fixture({
+    entitlement:{check:async(_userId,contentId)=>({contentId,decision:"denied"})},
+    playback:{createSession:async()=>{playbackCalls++;return {status:"created",playbackUrl:"https://media.example.test/should-not-play.m3u8"};}}
+  });
+  const token=jwt.sign({sub:"u-denied"},secret,{issuer:"balidan-rwa-api"});
+  const response=await request(app).post("/v1/playback/sessions")
+    .set("Authorization",`Bearer ${token}`).send({contentId:"premium-lecture"}).expect(403);
+  assert.equal(response.body.entitlement.decision,"denied");
+  assert.equal(playbackCalls,0);
+  db.close();
+});
+test("a non-created playback session is never returned as playable",async()=>{
+  const {db,app}=fixture({
+    entitlement:{check:async(_userId,contentId)=>({contentId,decision:"granted"})},
+    playback:{createSession:async(_userId,contentId)=>({contentId,status:"unavailable",reason:"provider unavailable"})}
+  });
+  const token=jwt.sign({sub:"u-unavailable"},secret,{issuer:"balidan-rwa-api"});
+  const response=await request(app).post("/v1/playback/sessions")
+    .set("Authorization",`Bearer ${token}`).send({contentId:"lecture-unavailable"}).expect(503);
+  assert.equal(response.body.error,"Authorized playback is not configured.");
+  assert.equal(response.body.playbackUrl,undefined);
+  db.close();
+});
