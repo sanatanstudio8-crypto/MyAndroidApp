@@ -118,8 +118,9 @@ class RwaCatalogueAdapter extends RwaCatalogueProvider {
     return mapList(raw, this.normalizers.batches, "batches").map(batchDto);
   }
   async listCourses(batchId) {
-    const raw = await this.operations.listCourses({ batchId });
+    ensureFunction(this.operations, "listCourses", "operation");
     ensureFunction(this.normalizers, "courses", "normalizer");
+    const raw = await this.operations.listCourses({ batchId });
     return mapList(raw, this.normalizers.courses, "courses").map(courseDto);
   }
   async getCourse(courseId) {
@@ -129,18 +130,21 @@ class RwaCatalogueAdapter extends RwaCatalogueProvider {
     return raw == null ? null : courseDto(await this.normalizers.course(raw));
   }
   async listChapters(courseId) {
-    const raw = await this.operations.listChapters({ courseId });
+    ensureFunction(this.operations, "listChapters", "operation");
     ensureFunction(this.normalizers, "chapters", "normalizer");
+    const raw = await this.operations.listChapters({ courseId });
     return mapList(raw, this.normalizers.chapters, "chapters").map(chapterDto);
   }
   async listLectures(chapterId, type) {
-    const raw = await this.operations.listLectures({ chapterId, type });
+    ensureFunction(this.operations, "listLectures", "operation");
     ensureFunction(this.normalizers, "lectures", "normalizer");
+    const raw = await this.operations.listLectures({ chapterId, type });
     return mapList(raw, this.normalizers.lectures, "lectures").map(lectureDto);
   }
   async listLiveClasses() {
-    const raw = await this.operations.listLiveClasses();
+    ensureFunction(this.operations, "listLiveClasses", "operation");
     ensureFunction(this.normalizers, "liveClasses", "normalizer");
+    const raw = await this.operations.listLiveClasses();
     return mapList(raw, this.normalizers.liveClasses, "liveClasses").map(liveClassDto);
   }
 }
