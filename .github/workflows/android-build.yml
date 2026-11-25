@@ -60,7 +60,7 @@ jobs:
           cp app/build/outputs/apk/debug/app-debug.apk apk-output/balidan-rwa-debug.apk
       - name: Build DEMO_MODE Debug APK (no release build)
         run: |
-          ./gradlew :app:assembleDebug -PDEMO_MODE=true -PAPI_BASE_URL="https://myandroidapp-api.onrender.com"
+          ./gradlew :app:assembleDebug -PDEMO_MODE=true -PAPI_BASE_URL="https://balidan-rwa-demo-staging.onrender.com"
           cp app/build/outputs/apk/debug/app-debug.apk apk-output/balidan-rwa-demo-debug.apk
       - name: Report APK file sizes
         run: |
