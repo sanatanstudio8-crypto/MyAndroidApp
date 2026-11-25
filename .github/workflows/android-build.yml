@@ -1,4 +1,4 @@
-name: Android and backend checks
+name: Android and backend checks # PostgreSQL validation pipeline
 
 on:
   push:
