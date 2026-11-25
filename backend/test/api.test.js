@@ -81,3 +81,15 @@ test("a non-created playback session is never returned as playable",async()=>{
   assert.equal(response.body.playbackUrl,undefined);
   db.close();
 });
+
+test("a created session without an HTTPS playback URL cannot be started",async()=>{
+  const {db,app}=fixture({
+    entitlement:{check:async(_userId,contentId)=>({contentId,decision:"granted"})},
+    playback:{createSession:async(_userId,contentId)=>({contentId,status:"created",playbackUrl:"http://insecure.example.test/video.m3u8"})}
+  });
+  const token=jwt.sign({sub:"u-insecure"},secret,{issuer:"balidan-rwa-api"});
+  const response=await request(app).post("/v1/playback/sessions")
+    .set("Authorization",`Bearer ${token}`).send({contentId:"lecture-insecure"}).expect(503);
+  assert.equal(response.body.playbackUrl,undefined);
+  db.close();
+});
