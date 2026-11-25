@@ -20,6 +20,16 @@ test("public stable catalogue routes return empty arrays without fabricated cont
   }
   db.close();
 });
+test("legacy demo_access flag never exposes Premium live or recording URLs",async()=>{
+  const {db,app}=fixture();
+  db.prepare("INSERT INTO classes(id,title,subject,teacher,description,status,type,join_url,playback_url,visibility,demo_access,created_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?)")
+    .run("premium-demo-flag","Premium class","Subject","Teacher","", "scheduled","recorded","https://join.example.test","https://media.example.test/premium.m3u8","paid",1,new Date().toISOString());
+  const response=await request(app).get("/v1/classes/recorded").expect(200);
+  assert.equal(response.body[0].demoAccess,true);
+  assert.equal(response.body[0].joinUrl,null);
+  assert.equal(response.body[0].playbackUrl,null);
+  db.close();
+});
 test("course, chapter and lecture routes use provider DTOs",async()=>{
   const catalogue={
     listBatches:async()=>[{id:"b1",title:"Batch"}],
