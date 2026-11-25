@@ -130,19 +130,23 @@ jobs:
           gradle-version: "8.9"
       - name: Generate wrapper because this repository does not currently contain one
         run: gradle wrapper --gradle-version 8.9
-      - name: Build single classroom Debug APK (demo catalogue and sample playback)
+      - name: Build standard Debug APK
+        run: |
+          ./gradlew :app:assembleDebug
+          mkdir -p apk-output
+          cp app/build/outputs/apk/debug/app-debug.apk apk-output/balidan-rwa-standard-debug.apk
+      - name: Build Demo Debug APK (isolated demo catalogue and sample playback)
         run: |
           ./gradlew :app:assembleDebug -PDEMO_MODE=true -PAPI_BASE_URL="https://balidan-rwa-demo-staging.onrender.com"
-          mkdir -p apk-output
-          cp app/build/outputs/apk/debug/app-debug.apk apk-output/balidan-rwa-classroom.apk
-      - name: Report APK file size and checksum
+          cp app/build/outputs/apk/debug/app-debug.apk apk-output/balidan-rwa-demo-debug.apk
+      - name: Report APK file sizes and checksums
         run: |
-          ls -lh apk-output/balidan-rwa-classroom.apk
-          sha256sum apk-output/balidan-rwa-classroom.apk
-      - name: Upload single Debug APK
+          ls -lh apk-output/*.apk
+          sha256sum apk-output/*.apk
+      - name: Upload standard and Demo Debug APKs
         uses: actions/upload-artifact@v4
         with:
-          name: balidan-rwa-classroom-apk
-          path: apk-output/balidan-rwa-classroom.apk
+          name: balidan-rwa-debug-apks
+          path: apk-output/*.apk
           if-no-files-found: error
           retention-days: 14
