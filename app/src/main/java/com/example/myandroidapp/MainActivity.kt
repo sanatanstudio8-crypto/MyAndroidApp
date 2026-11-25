@@ -32,6 +32,7 @@ import kotlinx.coroutines.launch
 import com.example.myandroidapp.data.ApiServiceFactory
 import com.example.myandroidapp.data.ClassDto
 import com.example.myandroidapp.data.SubjectDto
+import com.example.myandroidapp.data.ScheduleDto
 import com.example.myandroidapp.player.AuthorizedVideoPlayer
 
 private enum class ClassTab { LIVE, RECORDED }
@@ -77,6 +78,7 @@ private fun PublicClassesApp() {
     var live by remember { mutableStateOf(emptyList<ClassItem>()) }
     var recorded by remember { mutableStateOf(emptyList<ClassItem>()) }
     var subjects by remember { mutableStateOf(emptyList<SubjectDto>()) }
+    var schedules by remember { mutableStateOf(emptyList<ScheduleDto>()) }
     var favourites by remember { mutableStateOf(setOf<String>()) }
     var loading by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf<String?>(null) }
@@ -92,6 +94,7 @@ private fun PublicClassesApp() {
             live = api.liveClasses().map { it.toClassItem() }
             recorded = api.recordedClasses().map { it.toClassItem() }
             subjects = api.subjects()
+            schedules = api.schedule()
         } catch (e: Exception) {
             error = e.message?.take(140) ?: "Catalogue unavailable."
         } finally {
@@ -253,7 +256,7 @@ private fun PublicClassesApp() {
                             Text(if (section == HomeSection.BATCHES) "My Batches" else "Favourite",
                                 color = violet, fontSize = 23.sp, fontWeight = FontWeight.Bold)
                             Spacer(Modifier.weight(1f))
-                            Text("${allClasses.size} lectures • ${subjectNames.size} batches", color = muted, fontSize = 12.sp)
+                            Text("${allClasses.size} lectures • ${subjectNames.size} batches • ${schedules.size} scheduled", color = muted, fontSize = 12.sp)
                         }
                     }
                     item {
