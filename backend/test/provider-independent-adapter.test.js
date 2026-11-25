@@ -36,3 +36,12 @@ test("adapter normalizes provider-supplied catalogue, entitlement and sessions",
   assert.equal((await adapter.playback.createSession("user", "lecture-1")).status, "created");
   assert.equal((await adapter.liveJoin.createJoinSession("user", "live-1")).status, "created");
 });
+
+test("provider bundle is opt-in and cannot enable with incomplete contracts", () => {
+  const adapter = new ProviderIndependentRwaAdapter();
+  assert.equal(adapter.toProviderBundle().enabled, false);
+  assert.equal(adapter.toProviderBundle({ enabled: true }).enabled, false);
+  assert.equal(adapter.toProviderBundle().catalogue, adapter.catalogue);
+  assert.equal(adapter.toProviderBundle().playback, adapter.playback);
+  assert.equal(adapter.toProviderBundle().liveJoin, adapter.liveJoin);
+});
