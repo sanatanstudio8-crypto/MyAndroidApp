@@ -84,6 +84,7 @@ private fun PublicClassesApp() {
     var category by remember { mutableStateOf(CategoryFilter.ALL) }
     var search by remember { mutableStateOf("") }
     var selectedSubject by remember { mutableStateOf("All") }
+    var selectedCourse by remember { mutableStateOf("All") }
     var selectedChapter by remember { mutableStateOf("All") }
     var chapters by remember { mutableStateOf(emptyList<com.example.myandroidapp.data.ChapterDto>()) }
     var live by remember { mutableStateOf(emptyList<ClassItem>()) }
@@ -196,6 +197,7 @@ private fun PublicClassesApp() {
     }
 
     LaunchedEffect(selectedSubject, subjects) {
+        selectedCourse = "All"
         selectedChapter = "All"
         chapters = if (selectedSubject == "All") emptyList() else {
             val batch = subjects.firstOrNull { it.name == selectedSubject }
@@ -226,6 +228,7 @@ private fun PublicClassesApp() {
             (category == CategoryFilter.FREE && !item.isPremium) ||
             (category == CategoryFilter.PREMIUM && item.isPremium)) &&
         (selectedSubject == "All" || item.subject == selectedSubject) &&
+        (selectedCourse == "All" || item.teacher == selectedCourse) &&
         (selectedChapter == "All" || item.chapterId == selectedChapter) &&
         (section != HomeSection.FAVOURITES || item.id in favourites) &&
         (search.isBlank() || item.title.contains(search, true) ||
@@ -234,6 +237,8 @@ private fun PublicClassesApp() {
     }
     val subjectNames = (subjects.map { it.name } + allClasses.map { it.subject })
         .filter { it.isNotBlank() }.distinct().sorted()
+    val courseNames = recorded.filter { selectedSubject == "All" || it.subject == selectedSubject }
+        .map { it.teacher }.filter { it.isNotBlank() }.distinct().sorted()
     val categoryClasses = allClasses.filter { item ->
         category == CategoryFilter.ALL ||
             (category == CategoryFilter.FREE && !item.isPremium) ||
@@ -466,8 +471,23 @@ private fun PublicClassesApp() {
                             Text(if (selectedSubject == "All") "All Batch Lectures" else "$selectedSubject Lectures", color = Color.White, fontSize = 20.sp,
                                 fontWeight = FontWeight.Bold)
                             Spacer(Modifier.weight(1f))
-                            TextButton(onClick = { selectedSubject = "All"; selectedChapter = "All" }) {
+                            TextButton(onClick = { selectedSubject = "All"; selectedCourse = "All"; selectedChapter = "All" }) {
                                 Text("All batches", color = violet)
+                            }
+                        }
+                    }
+                    if (selectedSubject != "All" && courseNames.isNotEmpty()) {
+                        item {
+                            Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(horizontal = 18.dp),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                FilterChip(selected = selectedCourse == "All",
+                                    onClick = { selectedCourse = "All"; selectedChapter = "All" },
+                                    label = { Text("All courses") })
+                                courseNames.forEach { course ->
+                                    FilterChip(selected = selectedCourse == course,
+                                        onClick = { selectedCourse = course; selectedChapter = "All" },
+                                        label = { Text(course) })
+                                }
                             }
                         }
                     }
