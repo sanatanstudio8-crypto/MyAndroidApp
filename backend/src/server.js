@@ -19,6 +19,13 @@ import { createDisabledRwaProviders } from "./providers/rwa/disabled-rwa-provide
 
 const validEmail = value => typeof value==="string" && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
 
+export function assertDatabaseConfiguration(env=process.env) {
+  if(env.REQUIRE_POSTGRES==="true" && !env.DATABASE_URL)
+    throw new Error("DATABASE_URL is required when REQUIRE_POSTGRES=true.");
+  if(env.REQUIRE_POSTGRES==="true" && !/^postgres(ql)?:\\/\\//i.test(env.DATABASE_URL||""))
+    throw new Error("A PostgreSQL DATABASE_URL is required for this deployment.");
+}
+
 export function createDatabase(filename=":memory:") {
   if(filename!==":memory:") fs.mkdirSync(path.dirname(path.resolve(filename)),{recursive:true});
   const db=new Database(filename);
@@ -213,9 +220,7 @@ export function createApp({db, jwtSecret=process.env.JWT_SECRET, providers={}, d
 if(process.argv[1] && import.meta.url===pathToFileURL(process.argv[1]).href) {
   const PORT=Number(process.env.PORT||8080),HOST=process.env.HOST||"0.0.0.0";
   const start=async()=>{
-    const requirePostgres=process.env.REQUIRE_POSTGRES==="true";
-    if(requirePostgres&&!process.env.DATABASE_URL) throw new Error("DATABASE_URL is required when REQUIRE_POSTGRES=true.");
-    if(requirePostgres&&!/^postgres(ql)?:\/\//i.test(process.env.DATABASE_URL||"")) throw new Error("A PostgreSQL DATABASE_URL is required for this deployment.");
+    assertDatabaseConfiguration(process.env);
     const db=process.env.DATABASE_URL?await createPostgresDatabase():createDatabase(path.resolve(process.env.DATABASE_FILE||"./data/app.sqlite"));
     const server=createApp({db}).listen(PORT,HOST,()=>console.log("Balidan RWA API listening on "+HOST+":"+PORT));
     const shutdown=async()=>{server.close();if(typeof db.close==="function")await db.close();process.exit(0);};
