@@ -145,6 +145,23 @@ export function createApp({db, jwtSecret=process.env.JWT_SECRET, providers={}, d
   app.get("/v1/chapters/:chapterId/lectures",async(req,res,next)=>{try{res.json(await catalogue.listLectures(req.params.chapterId,"recorded"));}catch(e){next(e);}});
   app.get("/v1/live-classes",async(_req,res,next)=>{try{res.json(await catalogue.listLiveClasses());}catch(e){next(e);}});
   app.get("/v1/entitlements/content/:contentId",requireAuth,async(req,res,next)=>{try{res.json(await entitlement.check(req.user.sub,req.params.contentId));}catch(e){next(e);}});
+  app.post("/v1/playback/sessions/:sessionId/refresh",requireAuth,async(req,res,next)=>{
+    if(typeof playback.refreshSession!=="function")return res.status(503).json({error:"Playback session refresh is not configured."});
+    try {
+      const session=await playback.refreshSession(req.user.sub,req.params.sessionId);
+      if(!session||session.status!=="created"||typeof session.playbackUrl!=="string"||!session.playbackUrl.startsWith("https://"))
+        return res.status(503).json({error:"Authorized playback session refresh is unavailable."});
+      return res.json(session);
+    } catch(error){next(error);}
+  });
+  app.delete("/v1/playback/sessions/:sessionId",requireAuth,async(req,res,next)=>{
+    if(typeof playback.closeSession!=="function")return res.status(503).json({error:"Playback session close is not configured."});
+    try {
+      const result=await playback.closeSession(req.user.sub,req.params.sessionId);
+      if(!result||result.status!=="closed")return res.status(503).json({error:"Playback session could not be closed."});
+      return res.json({sessionId:req.params.sessionId,status:"closed"});
+    } catch(error){next(error);}
+  });
   app.post("/v1/playback/sessions",requireAuth,async(req,res,next)=>{
     const contentId=req.body?.contentId;
     if(typeof contentId!=="string"||!contentId.trim())return res.status(400).json({error:"contentId is required."});
