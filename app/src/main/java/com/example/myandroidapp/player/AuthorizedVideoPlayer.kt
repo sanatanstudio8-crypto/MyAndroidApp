@@ -11,11 +11,13 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
+import kotlinx.coroutines.launch
 import androidx.media3.common.MediaItem
 import androidx.media3.common.MediaMetadata
 import androidx.media3.common.PlaybackException
@@ -36,10 +38,14 @@ fun AuthorizedVideoPlayer(
     modifier: Modifier = Modifier,
     title: String? = null,
     mediaType: PlaybackMediaType = PlaybackMediaType.AUTO,
-    expiresAt: String? = null
+    expiresAt: String? = null,
+    onRetrySession: (suspend () -> String)? = null,
+    onCloseSession: (suspend () -> Unit)? = null
 ) {
-    val configuration = remember(mediaUrl, title, mediaType, expiresAt) {
-        PlaybackConfiguration(mediaUrl, title, mediaType, expiresAt)
+    val scope = rememberCoroutineScope()
+    val refreshedUrl = remember(mediaUrl) { mutableStateOf(mediaUrl) }
+    val configuration = remember(refreshedUrl.value, title, mediaType, expiresAt) {
+        PlaybackConfiguration(refreshedUrl.value, title, mediaType, expiresAt)
     }
     val expired = configuration.isExpired()
     val context = LocalContext.current
@@ -77,8 +83,11 @@ fun AuthorizedVideoPlayer(
         }
     }
 
-    DisposableEffect(player) {
-        onDispose { player?.release() }
+    DisposableEffect(player, onCloseSession) {
+        onDispose {
+            player?.release()
+            if (onCloseSession != null) scope.launch { runCatching { onCloseSession.invoke() } }
+        }
     }
 
     Box(modifier = modifier) {
@@ -106,8 +115,14 @@ fun AuthorizedVideoPlayer(
                     Button(onClick = {
                         errorMessage.value = null
                         isLoading.value = true
-                        retryAttempt.intValue += 1
-                    }) { Text("Retry playback") }
+                        if (onRetrySession != null) {
+                            scope.launch {
+                                runCatching { onRetrySession.invoke() }
+                                    .onSuccess { url -> refreshedUrl.value = url; retryAttempt.intValue += 1 }
+                                    .onFailure { errorMessage.value = it.message ?: "Playback session refresh failed."; isLoading.value = false }
+                            }
+                        } else retryAttempt.intValue += 1
+                    }) { Text(if (onRetrySession != null) "Refresh session and retry" else "Retry playback") }
                 }
             }
         } else {
