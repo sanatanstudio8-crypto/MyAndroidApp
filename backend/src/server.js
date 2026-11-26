@@ -22,7 +22,7 @@ const validEmail = value => typeof value==="string" && /^[^\s@]+@[^\s@]+\.[^\s@]
 export function assertDatabaseConfiguration(env=process.env) {
   if(env.REQUIRE_POSTGRES==="true" && !env.DATABASE_URL)
     throw new Error("DATABASE_URL is required when REQUIRE_POSTGRES=true.");
-  if(env.REQUIRE_POSTGRES==="true" && !/^postgres(ql)?:\\/\\//i.test(env.DATABASE_URL||""))
+  if(env.REQUIRE_POSTGRES==="true" && !(env.DATABASE_URL?.startsWith("postgres://") || env.DATABASE_URL?.startsWith("postgresql://")))
     throw new Error("A PostgreSQL DATABASE_URL is required for this deployment.");
 }
 
