@@ -41,6 +41,16 @@ class PlaybackConfigurationTest {
         assertFalse(config.isExpired(expiry - 1000))
     }
 
+    @Test fun malformedExpiryFailsClosed() {
+        val config = PlaybackConfiguration("https://media.test/a.mp4", expiresAt = "not-a-timestamp")
+        assertTrue(config.isExpired(0L))
+    }
+
+    @Test fun absentExpiryDoesNotExpireSession() {
+        val config = PlaybackConfiguration("https://media.test/a.mp4")
+        assertFalse(config.isExpired(Long.MAX_VALUE))
+    }
+
     @Test(expected = IllegalArgumentException::class)
     fun rejectsNonHttpsUrl() {
         PlaybackConfiguration("http://media.test/a.mp4")
