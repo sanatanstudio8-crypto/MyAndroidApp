@@ -70,12 +70,12 @@ private val muted = Color(0xFFB8B4C7)
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setContent { AuthenticationGate { PublicClassesApp() } }
+        setContent { AuthenticationGate { onLogout -> PublicClassesApp(onLogout = onLogout) } }
     }
 }
 
 @Composable
-private fun PublicClassesApp() {
+private fun PublicClassesApp(onLogout: () -> Unit) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val uriHandler = LocalUriHandler.current
@@ -361,6 +361,14 @@ private fun PublicClassesApp() {
                                         text = { Text("Refresh catalogue") },
                                         leadingIcon = { Icon(Icons.Default.Refresh, null) },
                                         onClick = { menuExpanded = false; scope.launch { refresh(forceRefresh = true) } }
+                                    )
+                                    DropdownMenuItem(
+                                        text = { Text("Sign out") },
+                                        onClick = {
+                                            menuExpanded = false
+                                            onLogout()
+                                            CatalogueRepository.invalidate()
+                                        }
                                     )
                                 }
                             }
