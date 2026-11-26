@@ -22,6 +22,7 @@ data class LiveClassDto(val id: String, val title: String, val courseId: String?
 data class EntitlementDto(val contentId: String, val decision: String)
 data class PlaybackSessionRequest(val contentId: String)
 data class PlaybackSessionDto(val id: String, val contentId: String, val status: String, val protocol: String? = null, val playbackUrl: String? = null, val expiresAt: String? = null)
+data class PlaybackSessionCloseDto(val sessionId: String, val status: String)
 
 data class DemoCatalogueDto(
     val mode: String,
