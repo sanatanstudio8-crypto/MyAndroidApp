@@ -23,6 +23,7 @@ interface LearningApi {
     @POST("v1/demo/playback/sessions") suspend fun createDemoPlaybackSession(@Body request: DemoPlaybackSessionRequest): DemoPlaybackSessionDto
     @POST("v1/demo/live/sessions") suspend fun createDemoLiveSession(@Body request: DemoLiveJoinRequest): DemoLiveJoinSessionDto
     @POST("v1/demo/live/sessions/{liveClassId}/leave") suspend fun leaveDemoLiveSession(@Path("liveClassId") liveClassId: String): DemoLiveLeaveDto
+    @GET("v1/catalogue") suspend fun catalogue(@Query("page") page: Int = 1, @Query("pageSize") pageSize: Int = 20): CataloguePageDto
     @GET("v1/batches") suspend fun batches(): List<BatchDto>
     @GET("v1/courses") suspend fun courses(@Query("batchId") batchId: String? = null): List<CourseDto>
     @GET("v1/courses/{courseId}") suspend fun course(@Path("courseId") courseId: String): CourseDto

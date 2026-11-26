@@ -60,3 +60,29 @@ data class DemoLiveLeaveDto(
     val sessionClosed: Boolean,
     val source: String
 )
+
+data class CatalogueBatchDto(val id: String, val title: String, val name: String = title, val courses: List<CatalogueCourseDto> = emptyList())
+data class CatalogueCourseDto(val id: String, val title: String, val description: String? = null, val visibility: String = "paid", val batchId: String? = null, val chapters: List<CatalogueChapterDto> = emptyList())
+data class CatalogueChapterDto(val id: String, val courseId: String, val title: String, val position: Int = 0, val lectures: List<CatalogueLectureDto> = emptyList())
+data class CatalogueLectureDto(val id: String, val chapterId: String, val title: String, val description: String? = null, val type: String = "recorded", val visibility: String = "paid")
+data class CataloguePageDto(
+    val items: List<CatalogueBatchDto> = emptyList(),
+    val page: Int,
+    val pageSize: Int,
+    val totalItems: Int,
+    val totalPages: Int,
+    val hasNextPage: Boolean,
+    val liveClasses: List<LiveClassDto> = emptyList(),
+    val legacyLive: List<ClassDto> = emptyList(),
+    val legacyRecorded: List<ClassDto> = emptyList(),
+    val subjects: List<SubjectDto> = emptyList(),
+    val schedules: List<ScheduleDto> = emptyList()
+)
+data class CatalogueSnapshotDto(
+    val batches: List<CatalogueBatchDto>,
+    val liveClasses: List<LiveClassDto>,
+    val legacyLive: List<ClassDto>,
+    val legacyRecorded: List<ClassDto>,
+    val subjects: List<SubjectDto>,
+    val schedules: List<ScheduleDto>
+)

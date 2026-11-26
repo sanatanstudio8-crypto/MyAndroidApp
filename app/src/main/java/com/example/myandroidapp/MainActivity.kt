@@ -30,6 +30,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.launch
 import com.example.myandroidapp.data.ApiServiceFactory
+import com.example.myandroidapp.data.CatalogueRepository
 import com.example.myandroidapp.data.ClassDto
 import com.example.myandroidapp.data.SubjectDto
 import com.example.myandroidapp.data.ScheduleDto
@@ -139,31 +140,32 @@ private fun PublicClassesApp() {
                 schedules = emptyList()
                 return
             }
-            // Preserve legacy API reads while connecting the batch/course/lecture hierarchy.
-            val legacyLive = api.liveClasses().map { it.toClassItem() }
-            val legacyRecorded = api.recordedClasses().map { it.toClassItem() }
-            val legacySubjects = api.subjects()
-            val loadedBatches = api.batches()
-            val loadedCourses = api.courses()
-            val modernRecorded = mutableListOf<ClassItem>()
-            for (course in loadedCourses) {
-                val batchName = loadedBatches.firstOrNull { it.id == course.batchId }?.title ?: course.title
-                for (chapter in api.courseChapters(course.id)) {
-                    for (lecture in api.lectures(chapter.id)) {
-                        modernRecorded += ClassItem(
-                            id = lecture.id, title = lecture.title, subject = batchName,
-                            teacher = course.title, timeLabel = "", status = "Recorded",
-                            description = lecture.description.orEmpty(), chapterId = chapter.id,
-                            joinUrl = null, playbackUrl = null, visibility = lecture.visibility,
-                            demoAccess = false, contentId = lecture.id, providerContent = true
-                        )
+            val snapshot = CatalogueRepository.load(api)
+            val loadedBatches = snapshot.batches
+            val legacyLive = snapshot.legacyLive.map { it.toClassItem() }
+            val legacyRecorded = snapshot.legacyRecorded.map { it.toClassItem() }
+            val batchNames = loadedBatches.associate { it.id to it.title }
+            val modernRecorded = loadedBatches.flatMap { batch ->
+                batch.courses.flatMap { course ->
+                    course.chapters.flatMap { chapter ->
+                        chapter.lectures.filter { it.type == "recorded" }.map { lecture ->
+                            ClassItem(
+                                id = lecture.id, title = lecture.title, subject = batch.title,
+                                teacher = course.title, timeLabel = "", status = "Recorded",
+                                description = lecture.description.orEmpty(), chapterId = chapter.id,
+                                joinUrl = null, playbackUrl = null, visibility = lecture.visibility,
+                                demoAccess = false, contentId = lecture.id, providerContent = true
+                            )
+                        }
                     }
                 }
             }
-            val modernLive = api.liveLearningClasses().map { liveClass ->
-                val course = loadedCourses.firstOrNull { it.id == liveClass.courseId }
-                val batchName = loadedBatches.firstOrNull { it.id == course?.batchId }?.title
-                    ?: course?.title ?: "Live classes"
+            val modernLive = snapshot.liveClasses.map { liveClass ->
+                val course = loadedBatches.asSequence().flatMap { it.courses.asSequence() }
+                    .firstOrNull { it.id == liveClass.courseId }
+                val batchName = liveClass.courseId?.let { id ->
+                    loadedBatches.firstOrNull { batch -> batch.courses.any { it.id == id } }?.title
+                } ?: course?.title ?: "Live classes"
                 ClassItem(
                     id = liveClass.id, title = liveClass.title, subject = batchName,
                     teacher = course?.title.orEmpty(), timeLabel = liveClass.startsAt.orEmpty(),
@@ -174,8 +176,8 @@ private fun PublicClassesApp() {
             }
             live = (legacyLive + modernLive).distinctBy { it.id }
             recorded = (legacyRecorded + modernRecorded).distinctBy { it.id }
-            subjects = (legacySubjects + loadedBatches.map { SubjectDto(it.id, it.title) }).distinctBy { it.id }
-            schedules = api.schedule()
+            subjects = (snapshot.subjects + loadedBatches.map { SubjectDto(it.id, it.title) }).distinctBy { it.id }
+            schedules = snapshot.schedules
         } catch (e: Exception) {
             error = e.message?.take(140) ?: "Catalogue unavailable."
         } finally {
@@ -186,7 +188,7 @@ private fun PublicClassesApp() {
     LaunchedEffect(Unit) {
         while (true) {
             refresh()
-            kotlinx.coroutines.delay(30_000)
+            kotlinx.coroutines.delay(5 * 60_000L)
         }
     }
 
@@ -203,15 +205,13 @@ private fun PublicClassesApp() {
                     }
                 }.getOrDefault(emptyList())
             } else if (batch == null) emptyList() else runCatching {
-                val api = ApiServiceFactory.learning(context)
-                val legacyChapters = api.chapters(batch.id)
-                val modernChapters = mutableListOf<com.example.myandroidapp.data.ChapterDto>()
-                for (course in api.courses(batch.id)) {
-                    for (chapter in api.courseChapters(course.id)) {
-                        modernChapters += com.example.myandroidapp.data.ChapterDto(chapter.id, batch.id, chapter.title)
+                val snapshot = CatalogueRepository.load(ApiServiceFactory.learning(context))
+                val batchData = snapshot.batches.firstOrNull { it.id == batch.id }
+                batchData?.courses.orEmpty().flatMap { course ->
+                    course.chapters.map { chapter ->
+                        com.example.myandroidapp.data.ChapterDto(chapter.id, batch.id, chapter.title)
                     }
-                }
-                (legacyChapters + modernChapters).distinctBy { it.id }
+                }.distinctBy { it.id }
             }.getOrDefault(emptyList())
         }
     }
