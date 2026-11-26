@@ -1,23 +1,32 @@
-# MyAndroidApp
+# Balidan RWA
 
-A native Android starter app with RWA-inspired Live Classes and Recorded Classes screens.
+Native Android learning demo built with Kotlin, Jetpack Compose and Media3, backed by Balidan's own Node.js API.
 
-## Current scope
+## Isolated demo
 
-- Live classes list with scheduled/live states and join action placeholder.
-- Recorded classes list with subject filters and playback action placeholder.
-- Sample data is local so the UI can be explored without a backend.
+The opt-in demo has separate Free and Premium sample batches, courses, chapters, recorded lessons and live-room cards. It requires both:
 
-## Requirements
+- Android compile flag: `-PDEMO_MODE=true`
+- Backend environment: `DEMO_MODE=true`
 
-- Android Studio (recent stable release)
-- Android SDK 35
-- JDK 17
+Recorded demo sessions are authorized by a server-side fixture before the Android app maps the returned media reference to the public MDN CC0 flower test video. The player uses Media3 controls. Both sample tiers use test media only; they are not Original RWA lectures or protected Premium content.
 
-## Build
+Free and Premium live cards join a server-managed, in-process local demo room. The app provides a Leave action. This is a room lifecycle simulation, not a live broadcast or external meeting.
 
-Open this repository in Android Studio and sync Gradle. Run the `app` configuration on an emulator or Android device.
+The backend fixture tests granted, denied, expired and unknown decisions. The Android client cannot choose the entitlement decision. Demo providers are separate from real entitlement/playback providers and cannot grant Original RWA access.
 
-## Integration notes
+See [backend/README.md](backend/README.md) for local setup and the demo API contract.
 
-This is an independent implementation based on observed feature concepts, not a copy of Rojgar With Ankit source code. Real-time streaming, authentication, paid access, APIs, and video hosting are not connected yet; they require your backend and provider credentials.
+## Configure the Android API
+
+Pass an HTTPS API base URL when compiling:
+
+```bash
+./gradlew :app:compileDebugKotlin -PDEMO_MODE=true -PAPI_BASE_URL=https://your-demo-api.example/
+```
+
+Do not put provider credentials or signing secrets in the APK. Real Original RWA adapters remain disabled until written authorization, official integration documentation and a provider-approved sandbox are available.
+
+## Validation
+
+GitHub Actions compiles the Android debug and opt-in Demo Mode Kotlin variants and runs backend SQLite and PostgreSQL tests. The workflow compiles Kotlin; it does not create an APK artifact.
