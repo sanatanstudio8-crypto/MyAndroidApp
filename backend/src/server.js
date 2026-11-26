@@ -149,8 +149,13 @@ export function createApp({db, jwtSecret=process.env.JWT_SECRET, providers={}, d
     if(typeof playback.refreshSession!=="function")return res.status(503).json({error:"Playback session refresh is not configured."});
     try {
       const session=await playback.refreshSession(req.user.sub,req.params.sessionId);
-      if(!session||session.status!=="created"||typeof session.playbackUrl!=="string"||!session.playbackUrl.startsWith("https://"))
+      if(!session||session.id!==req.params.sessionId||typeof session.contentId!=="string"||
+        !session.contentId||session.status!=="created"||
+        typeof session.playbackUrl!=="string"||!session.playbackUrl.startsWith("https://"))
         return res.status(503).json({error:"Authorized playback session refresh is unavailable."});
+      const access=await entitlement.check(req.user.sub,session.contentId);
+      if(access.contentId!==session.contentId||access.decision!=="granted")
+        return res.status(403).json({error:"Content entitlement is no longer granted.",entitlement:access});
       return res.json(session);
     } catch(error){next(error);}
   });
