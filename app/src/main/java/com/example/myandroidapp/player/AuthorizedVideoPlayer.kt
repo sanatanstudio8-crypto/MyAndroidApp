@@ -3,10 +3,12 @@ package com.example.myandroidapp.player
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
@@ -43,8 +45,9 @@ fun AuthorizedVideoPlayer(
     val context = LocalContext.current
     val isLoading = remember(configuration) { mutableStateOf(!expired) }
     val errorMessage = remember(configuration) { mutableStateOf<String?>(null) }
+    val retryAttempt = remember(configuration) { mutableIntStateOf(0) }
 
-    val player = remember(configuration, expired) {
+    val player = remember(configuration, expired, retryAttempt.intValue) {
         if (expired) null else ExoPlayer.Builder(context).build().apply {
             val metadata = MediaMetadata.Builder()
                 .setTitle(configuration.title?.takeIf { it.isNotBlank() })
@@ -95,10 +98,17 @@ fun AuthorizedVideoPlayer(
                 CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
             }
             errorMessage.value?.let { message ->
-                Text(
-                    text = message,
-                    modifier = Modifier.align(Alignment.Center).padding(16.dp)
-                )
+                androidx.compose.foundation.layout.Column(
+                    modifier = Modifier.align(Alignment.Center).padding(16.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Text(text = message)
+                    Button(onClick = {
+                        errorMessage.value = null
+                        isLoading.value = true
+                        retryAttempt.intValue += 1
+                    }) { Text("Retry playback") }
+                }
             }
         } else {
             Text(
