@@ -4,7 +4,7 @@ on:
   push:
     branches: [main, feature/auth-backend-player-foundation, work/balidan-provider-architecture, work/balidan-postgres-validation, work/catalogue-phase1, work/recorded-playback-phase2, work/balidan-independent-staging]
   pull_request:
-    branches: [main, feature/auth-backend-player-foundation]
+    branches: [main, feature/auth-backend-player-foundation, work/recorded-playback-phase2]
 
 jobs:
   backend-tests:
