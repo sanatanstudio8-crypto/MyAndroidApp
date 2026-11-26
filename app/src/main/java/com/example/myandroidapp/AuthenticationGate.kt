@@ -30,7 +30,7 @@ import com.example.myandroidapp.security.SecureTokenStore
 import kotlinx.coroutines.launch
 
 @Composable
-fun AuthenticationGate(content: @Composable () -> Unit) {
+fun AuthenticationGate(content: @Composable (onLogout: () -> Unit) -> Unit) {
     val context = LocalContext.current
     val tokenStore = remember { SecureTokenStore(context.applicationContext) }
     var authenticated by remember { mutableStateOf(!tokenStore.readToken().isNullOrBlank()) }
@@ -43,10 +43,12 @@ fun AuthenticationGate(content: @Composable () -> Unit) {
     val scope = rememberCoroutineScope()
 
     if (authenticated && !tokenStore.readToken().isNullOrBlank()) {
-        content()
+        content {
+            tokenStore.clear()
+            authenticated = false
+        }
         return
     }
-    authenticated = false
 
     MaterialTheme {
         Column(
