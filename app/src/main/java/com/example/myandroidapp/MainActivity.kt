@@ -101,7 +101,7 @@ private fun PublicClassesApp() {
     var liveRoom by remember { mutableStateOf<DemoLiveJoinSessionDto?>(null) }
     var menuExpanded by remember { mutableStateOf(false) }
 
-    suspend fun refresh() {
+    suspend fun refresh(forceRefresh: Boolean = false) {
         loading = true
         error = null
         try {
@@ -140,7 +140,7 @@ private fun PublicClassesApp() {
                 schedules = emptyList()
                 return
             }
-            val snapshot = CatalogueRepository.load(api)
+            val snapshot = CatalogueRepository.load(api, forceRefresh)
             val loadedBatches = snapshot.batches
             val legacyLive = snapshot.legacyLive.map { it.toClassItem() }
             val legacyRecorded = snapshot.legacyRecorded.map { it.toClassItem() }
@@ -337,7 +337,7 @@ private fun PublicClassesApp() {
                                     DropdownMenuItem(
                                         text = { Text("Refresh catalogue") },
                                         leadingIcon = { Icon(Icons.Default.Refresh, null) },
-                                        onClick = { menuExpanded = false; scope.launch { refresh() } }
+                                        onClick = { menuExpanded = false; scope.launch { refresh(forceRefresh = true) } }
                                     )
                                 }
                             }

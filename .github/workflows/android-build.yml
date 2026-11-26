@@ -2,7 +2,7 @@ name: Android classroom APK and backend checks
 
 on:
   push:
-    branches: [main, feature/auth-backend-player-foundation, work/balidan-provider-architecture, work/balidan-postgres-validation]
+    branches: [main, feature/auth-backend-player-foundation, work/balidan-provider-architecture, work/balidan-postgres-validation, work/catalogue-phase1]
   pull_request:
     branches: [main, feature/auth-backend-player-foundation]
 
