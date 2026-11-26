@@ -189,3 +189,75 @@ test("paginated catalogue snapshot preserves hierarchy, stable ordering and visi
   await request(app).get("/v1/catalogue?page=1&pageSize=101").expect(400);
   db.close();
 });
+
+
+test("controlled playback provider covers Free/Premium decisions and create-refresh-close lifecycle",async()=>{
+  const sessions=new Map();
+  const calls=[];
+  const decisions=new Map([
+    ["free-lecture","granted"],["premium-lecture","granted"],
+    ["denied-lecture","denied"],["unknown-lecture","unknown"],
+    ["expired-lecture","expired"]
+  ]);
+  const providers={
+    entitlement:{check:async(_userId,contentId)=>({
+      contentId,decision:decisions.get(contentId)||"unknown"
+    })},
+    playback:{
+      createSession:async(userId,contentId)=>{
+        calls.push(["create",userId,contentId]);
+        const session={id:"test-session-"+contentId,contentId,status:"created",
+          protocol:"progressive",playbackUrl:"https://authorized.test/"+contentId+".mp4",
+          expiresAt:new Date(Date.now()+60000).toISOString()};
+        sessions.set(session.id,{...session,userId});
+        return session;
+      },
+      refreshSession:async(userId,sessionId)=>{
+        calls.push(["refresh",userId,sessionId]);
+        const current=sessions.get(sessionId);
+        if(!current||current.userId!==userId)return null;
+        const refreshed={...current,expiresAt:new Date(Date.now()+120000).toISOString()};
+        sessions.set(sessionId,refreshed);
+        return refreshed;
+      },
+      closeSession:async(userId,sessionId)=>{
+        calls.push(["close",userId,sessionId]);
+        const current=sessions.get(sessionId);
+        if(!current||current.userId!==userId)return {status:"not_found"};
+        sessions.delete(sessionId);
+        return {status:"closed"};
+      }
+    }
+  };
+  const {db,app}=fixture(providers);
+  const token=jwt.sign({sub:"phase2-test-user"},secret,{issuer:"balidan-rwa-api"});
+  const auth={Authorization:`Bearer ${token}`};
+
+  for(const contentId of ["free-lecture","premium-lecture"]) {
+    const created=await request(app).post("/v1/playback/sessions")
+      .set(auth).send({contentId}).expect(201);
+    assert.equal(created.body.contentId,contentId);
+    assert.equal(created.body.status,"created");
+    assert.match(created.body.playbackUrl,/^https:\/\//);
+    const refreshed=await request(app).post("/v1/playback/sessions/"+created.body.id+"/refresh")
+      .set(auth).expect(200);
+    assert.equal(refreshed.body.id,created.body.id);
+    assert.equal(refreshed.body.contentId,contentId);
+    assert.equal(refreshed.body.status,"created");
+    const closed=await request(app).delete("/v1/playback/sessions/"+created.body.id)
+      .set(auth).expect(200);
+    assert.deepEqual(closed.body,{sessionId:created.body.id,status:"closed"});
+    assert.equal(sessions.has(created.body.id),false);
+  }
+
+  for(const contentId of ["denied-lecture","unknown-lecture","expired-lecture"]) {
+    const denied=await request(app).post("/v1/playback/sessions")
+      .set(auth).send({contentId}).expect(403);
+    assert.equal(denied.body.entitlement.decision,
+      contentId==="denied-lecture"?"denied":contentId==="unknown-lecture"?"unknown":"expired");
+  }
+  assert.equal(calls.filter(call=>call[0]==="create").length,2);
+  assert.equal(calls.filter(call=>call[0]==="refresh").length,2);
+  assert.equal(calls.filter(call=>call[0]==="close").length,2);
+  db.close();
+});
