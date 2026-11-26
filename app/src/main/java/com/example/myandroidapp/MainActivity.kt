@@ -279,16 +279,24 @@ private fun PublicClassesApp(onLogout: () -> Unit) {
             }
         } else if (demoMediaUrl != null) {
             Column(Modifier.fillMaxSize().background(Color.Black)) {
-                TextButton(onClick = { demoMediaUrl = null }) {
-                    Text("Back to lectures", color = Color.White)
+                Button(
+                    onClick = { demoMediaUrl = null },
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFB3261E))
+                ) {
+                    Text("Exit lecture", color = Color.White, fontWeight = FontWeight.Bold)
                 }
                 DemoVideoPlayer(mediaUrl = demoMediaUrl!!,
                     modifier = Modifier.fillMaxWidth().weight(1f))
             }
         } else if (mediaUrl != null) {
             Column(Modifier.fillMaxSize().background(Color.Black)) {
-                TextButton(onClick = { mediaUrl = null }) {
-                    Text("Back to lectures", color = Color.White)
+                Button(
+                    onClick = { mediaUrl = null },
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFB3261E))
+                ) {
+                    Text("Exit lecture", color = Color.White, fontWeight = FontWeight.Bold)
                 }
                 AuthorizedVideoPlayer(mediaUrl = mediaUrl!!,
                     modifier = Modifier.fillMaxWidth().weight(1f),
