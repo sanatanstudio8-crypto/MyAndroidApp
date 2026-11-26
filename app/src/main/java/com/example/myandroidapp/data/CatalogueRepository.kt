@@ -26,7 +26,7 @@ internal class CataloguePageAccumulator {
         response.items.forEach { batch -> batches.putIfAbsent(batch.id, batch) }
         finished = !response.hasNextPage
         expectedPage += 1
-        require(expectedPage <= response.totalPages + 1) { "Catalogue pagination exceeded totalPages." }
+        require(expectedPage <= maxOf(response.totalPages, 1) + 1) { "Catalogue pagination exceeded totalPages." }
     }
 
     fun snapshot(): CatalogueSnapshotDto {

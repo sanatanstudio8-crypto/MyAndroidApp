@@ -38,6 +38,12 @@ class CataloguePageAccumulatorTest {
         assertThrows(IllegalArgumentException::class.java) { accumulator.append(page) }
     }
 
+    @Test fun acceptsAnEmptyCatalogue() {
+        val accumulator = CataloguePageAccumulator()
+        accumulator.append(CataloguePageDto(page = 1, pageSize = 50, totalItems = 0, totalPages = 0, hasNextPage = false))
+        assertEquals(emptyList<String>(), accumulator.snapshot().batches.map { it.id })
+    }
+
     @Test fun rejectsIncompleteSnapshot() {
         val accumulator = CataloguePageAccumulator()
         accumulator.append(CataloguePageDto(page = 1, pageSize = 10, totalItems = 20, totalPages = 2, hasNextPage = true))
