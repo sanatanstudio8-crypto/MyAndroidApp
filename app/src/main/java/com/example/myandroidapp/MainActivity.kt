@@ -70,12 +70,12 @@ private val muted = Color(0xFFB8B4C7)
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setContent { PublicClassesApp() }
+        setContent { AuthenticationGate { onLogout -> PublicClassesApp(onLogout = onLogout) } }
     }
 }
 
 @Composable
-private fun PublicClassesApp() {
+private fun PublicClassesApp(onLogout: () -> Unit) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val uriHandler = LocalUriHandler.current
@@ -279,16 +279,24 @@ private fun PublicClassesApp() {
             }
         } else if (demoMediaUrl != null) {
             Column(Modifier.fillMaxSize().background(Color.Black)) {
-                TextButton(onClick = { demoMediaUrl = null }) {
-                    Text("Back to lectures", color = Color.White)
+                Button(
+                    onClick = { demoMediaUrl = null },
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFB3261E))
+                ) {
+                    Text("Exit lecture", color = Color.White, fontWeight = FontWeight.Bold)
                 }
                 DemoVideoPlayer(mediaUrl = demoMediaUrl!!,
                     modifier = Modifier.fillMaxWidth().weight(1f))
             }
         } else if (mediaUrl != null) {
             Column(Modifier.fillMaxSize().background(Color.Black)) {
-                TextButton(onClick = { mediaUrl = null }) {
-                    Text("Back to lectures", color = Color.White)
+                Button(
+                    onClick = { mediaUrl = null },
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFB3261E))
+                ) {
+                    Text("Exit lecture", color = Color.White, fontWeight = FontWeight.Bold)
                 }
                 AuthorizedVideoPlayer(mediaUrl = mediaUrl!!,
                     modifier = Modifier.fillMaxWidth().weight(1f),
@@ -361,6 +369,14 @@ private fun PublicClassesApp() {
                                         text = { Text("Refresh catalogue") },
                                         leadingIcon = { Icon(Icons.Default.Refresh, null) },
                                         onClick = { menuExpanded = false; scope.launch { refresh(forceRefresh = true) } }
+                                    )
+                                    DropdownMenuItem(
+                                        text = { Text("Sign out") },
+                                        onClick = {
+                                            menuExpanded = false
+                                            onLogout()
+                                            CatalogueRepository.invalidate()
+                                        }
                                     )
                                 }
                             }

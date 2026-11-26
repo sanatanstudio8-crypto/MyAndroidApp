@@ -49,11 +49,16 @@ object ApiServiceFactory {
             val request = chain.request().newBuilder().apply {
                 tokenStore.readToken()?.takeIf { it.isNotBlank() }?.let { header("Authorization", "Bearer $it") }
             }.build()
-            chain.proceed(request)
+            chain.proceed(request).also { response ->
+                if (response.code == 401) tokenStore.clear()
+            }
         }.build()
         return Retrofit.Builder().baseUrl(if (base.endsWith("/")) base else "$base/")
             .client(client).addConverterFactory(GsonConverterFactory.create()).build()
     }
     fun learning(context: Context): LearningApi = retrofit(context).create(LearningApi::class.java)
     fun auth(context: Context): AuthApi = retrofit(context).create(AuthApi::class.java)
+    fun authRepository(context: Context): AuthRepository = AuthRepository(
+        auth(context), SecureTokenStore(context.applicationContext)
+    )
 }

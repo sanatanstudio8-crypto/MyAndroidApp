@@ -12,6 +12,12 @@ function fixture(overrides={}) {
   const app=createApp({db,jwtSecret:secret,providers:overrides});
   return {db,app};
 }
+test("health endpoint verifies an actual database query",async()=>{
+  const {db,app}=fixture();
+  const response=await request(app).get("/health").expect(200);
+  assert.deepEqual(response.body,{status:"ok",database:"sqlite"});
+  db.close();
+});
 test("public stable catalogue routes return empty arrays without fabricated content",async()=>{
   const {db,app}=fixture();
   for(const route of ["/v1/batches","/v1/courses","/v1/live-classes"]) {

@@ -6,7 +6,7 @@ plugins {
 
 // The catalogue API is public and uses HTTPS; no build secret is required.
 val configuredApiBaseUrl = providers.gradleProperty("API_BASE_URL")
-    .orElse("https://myandroidapp-api.onrender.com")
+    .orElse("https://balidan-independent-staging-api.onrender.com")
     .get()
 val demoModeEnabled = providers.gradleProperty("DEMO_MODE").orElse("false").get().toBoolean()
 

@@ -19,6 +19,13 @@ import { createDisabledRwaProviders } from "./providers/rwa/disabled-rwa-provide
 
 const validEmail = value => typeof value==="string" && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
 
+export function assertDatabaseConfiguration(env=process.env) {
+  if(env.REQUIRE_POSTGRES==="true" && !env.DATABASE_URL)
+    throw new Error("DATABASE_URL is required when REQUIRE_POSTGRES=true.");
+  if(env.REQUIRE_POSTGRES==="true" && !(env.DATABASE_URL?.startsWith("postgres://") || env.DATABASE_URL?.startsWith("postgresql://")))
+    throw new Error("A PostgreSQL DATABASE_URL is required for this deployment.");
+}
+
 export function createDatabase(filename=":memory:") {
   if(filename!==":memory:") fs.mkdirSync(path.dirname(path.resolve(filename)),{recursive:true});
   const db=new Database(filename);
@@ -69,7 +76,18 @@ export function createApp({db, jwtSecret=process.env.JWT_SECRET, providers={}, d
     try { req.user=jwt.verify(header.slice(7),jwtSecret,{issuer:"balidan-rwa-api"}); next(); }
     catch { return res.status(401).json({error:"Invalid or expired access token."}); }
   };
-  app.get("/health",(_req,res)=>res.json({status:"ok",database:postgres?"postgres":"sqlite"}));
+  app.get("/health",async(_req,res)=>{
+    try {
+      await dbGet(db,"SELECT 1 AS ok");
+      if(postgres) {
+        const migration=await dbGet(db,"SELECT MAX(version) AS version FROM schema_migrations");
+        return res.json({status:"ok",database:"postgres",migrations:Number(migration?.version||0)});
+      }
+      return res.json({status:"ok",database:"sqlite"});
+    } catch {
+      return res.status(503).json({status:"unavailable",database:postgres?"postgres":"sqlite"});
+    }
+  });
   app.post("/v1/auth/signup",authLimiter,async(req,res)=>{
     const {name,email,password}=req.body||{};
     if(typeof name!=="string"||name.trim().length<2||!validEmail(email)||typeof password!=="string"||password.length<10)return res.status(400).json({error:"Provide a name, valid email and password of at least 10 characters."});
@@ -213,6 +231,7 @@ export function createApp({db, jwtSecret=process.env.JWT_SECRET, providers={}, d
 if(process.argv[1] && import.meta.url===pathToFileURL(process.argv[1]).href) {
   const PORT=Number(process.env.PORT||8080),HOST=process.env.HOST||"0.0.0.0";
   const start=async()=>{
+    assertDatabaseConfiguration(process.env);
     const db=process.env.DATABASE_URL?await createPostgresDatabase():createDatabase(path.resolve(process.env.DATABASE_FILE||"./data/app.sqlite"));
     const server=createApp({db}).listen(PORT,HOST,()=>console.log("Balidan RWA API listening on "+HOST+":"+PORT));
     const shutdown=async()=>{server.close();if(typeof db.close==="function")await db.close();process.exit(0);};
