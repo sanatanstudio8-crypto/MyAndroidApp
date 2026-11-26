@@ -40,7 +40,7 @@ jobs:
       - name: PostgreSQL migrations and API integration tests
         run: npm run test:postgres
       - name: Verify deployed DEMO_MODE endpoints (isolated legacy staging only)
-        if: github.ref != 'refs/heads/work/balidan-independent-staging'
+        if: github.head_ref != 'work/balidan-independent-staging'
         env:
           DEMO_API_BASE_URL: https://balidan-rwa-demo-staging.onrender.com
         run: |
