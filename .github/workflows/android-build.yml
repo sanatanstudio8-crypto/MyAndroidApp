@@ -2,7 +2,7 @@ name: Android classroom APK and backend checks
 
 on:
   push:
-    branches: [main, feature/auth-backend-player-foundation, work/balidan-provider-architecture, work/balidan-postgres-validation, work/catalogue-phase1, work/recorded-playback-phase2]
+    branches: [main, feature/auth-backend-player-foundation, work/balidan-provider-architecture, work/balidan-postgres-validation, work/catalogue-phase1, work/recorded-playback-phase2, work/balidan-independent-staging]
   pull_request:
     branches: [main, feature/auth-backend-player-foundation]
 
@@ -39,7 +39,8 @@ jobs:
       - run: npm test
       - name: PostgreSQL migrations and API integration tests
         run: npm run test:postgres
-      - name: Verify deployed DEMO_MODE endpoints (isolated staging only)
+      - name: Verify deployed DEMO_MODE endpoints (isolated legacy staging only)
+        if: github.ref != 'refs/heads/work/balidan-independent-staging'
         env:
           DEMO_API_BASE_URL: https://balidan-rwa-demo-staging.onrender.com
         run: |
