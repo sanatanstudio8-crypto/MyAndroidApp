@@ -7,6 +7,7 @@ import okhttp3.OkHttpClient
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
 import retrofit2.http.Body
+import retrofit2.http.DELETE
 import retrofit2.http.GET
 import retrofit2.http.POST
 import retrofit2.http.Path
@@ -32,6 +33,8 @@ interface LearningApi {
     @GET("v1/live-classes") suspend fun liveLearningClasses(): List<LiveClassDto>
     @GET("v1/entitlements/content/{contentId}") suspend fun entitlement(@Path("contentId") contentId: String): EntitlementDto
     @POST("v1/playback/sessions") suspend fun createPlaybackSession(@Body request: PlaybackSessionRequest): PlaybackSessionDto
+    @POST("v1/playback/sessions/{sessionId}/refresh") suspend fun refreshPlaybackSession(@Path("sessionId") sessionId: String): PlaybackSessionDto
+    @DELETE("v1/playback/sessions/{sessionId}") suspend fun closePlaybackSession(@Path("sessionId") sessionId: String): PlaybackSessionCloseDto
 }
 interface AuthApi {
     @POST("v1/auth/login") suspend fun login(@Body request: LoginRequest): AuthResponse
