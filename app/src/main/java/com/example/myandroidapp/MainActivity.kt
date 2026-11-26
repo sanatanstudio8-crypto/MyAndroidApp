@@ -31,6 +31,7 @@ import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.launch
 import com.example.myandroidapp.data.ApiServiceFactory
 import com.example.myandroidapp.data.CatalogueRepository
+import com.example.myandroidapp.data.PlaybackRepository
 import com.example.myandroidapp.data.ClassDto
 import com.example.myandroidapp.data.SubjectDto
 import com.example.myandroidapp.data.ScheduleDto
@@ -97,6 +98,8 @@ private fun PublicClassesApp() {
     var mediaTitle by remember { mutableStateOf<String?>(null) }
     var mediaType by remember { mutableStateOf(PlaybackMediaType.AUTO) }
     var mediaExpiresAt by remember { mutableStateOf<String?>(null) }
+    var activePlaybackSessionId by remember { mutableStateOf<String?>(null) }
+    var activePlaybackContentId by remember { mutableStateOf<String?>(null) }
     var demoMediaUrl by remember { mutableStateOf<String?>(null) }
     var liveRoom by remember { mutableStateOf<DemoLiveJoinSessionDto?>(null) }
     var menuExpanded by remember { mutableStateOf(false) }
@@ -284,7 +287,22 @@ private fun PublicClassesApp() {
                 }
                 AuthorizedVideoPlayer(mediaUrl = mediaUrl!!,
                     modifier = Modifier.fillMaxWidth().weight(1f),
-                    title = mediaTitle, mediaType = mediaType, expiresAt = mediaExpiresAt)
+                    title = mediaTitle, mediaType = mediaType, expiresAt = mediaExpiresAt,
+                    onRetrySession = {
+                        val sessionId = requireNotNull(activePlaybackSessionId)
+                        val contentId = requireNotNull(activePlaybackContentId)
+                        val refreshed = PlaybackRepository(ApiServiceFactory.learning(context))
+                            .refreshSession(sessionId, contentId)
+                        mediaExpiresAt = refreshed.expiresAt
+                        requireNotNull(refreshed.playbackUrl)
+                    },
+                    onCloseSession = {
+                        activePlaybackSessionId?.let { sessionId ->
+                            PlaybackRepository(ApiServiceFactory.learning(context)).closeSession(sessionId)
+                        }
+                        activePlaybackSessionId = null
+                        activePlaybackContentId = null
+                    })
             }
         } else {
             Scaffold(
@@ -562,8 +580,8 @@ private fun PublicClassesApp() {
                                                     item.providerContent || item.isPremium -> {
                                                         notice = "Checking playback authorization…"
                                                         try {
-                                                            val session = ApiServiceFactory.learning(context)
-                                                                .createPlaybackSession(PlaybackSessionRequest(item.contentId))
+                                                            val session = PlaybackRepository(ApiServiceFactory.learning(context))
+                                                                .createSession(item.contentId)
                                                             if (session.status == "created" &&
                                                                 session.playbackUrl?.startsWith("https://") == true
                                                             ) {
@@ -576,6 +594,8 @@ private fun PublicClassesApp() {
                                                                     else -> PlaybackMediaType.AUTO
                                                                 }
                                                                 mediaExpiresAt = session.expiresAt
+                                                                activePlaybackSessionId = session.id
+                                                                activePlaybackContentId = item.contentId
                                                                 mediaUrl = session.playbackUrl
                                                             } else {
                                                                 notice = "Authorized playback session is unavailable."
