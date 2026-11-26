@@ -76,7 +76,18 @@ export function createApp({db, jwtSecret=process.env.JWT_SECRET, providers={}, d
     try { req.user=jwt.verify(header.slice(7),jwtSecret,{issuer:"balidan-rwa-api"}); next(); }
     catch { return res.status(401).json({error:"Invalid or expired access token."}); }
   };
-  app.get("/health",(_req,res)=>res.json({status:"ok",database:postgres?"postgres":"sqlite"}));
+  app.get("/health",async(_req,res)=>{
+    try {
+      await dbGet(db,"SELECT 1 AS ok");
+      if(postgres) {
+        const migration=await dbGet(db,"SELECT MAX(version) AS version FROM schema_migrations");
+        return res.json({status:"ok",database:"postgres",migrations:Number(migration?.version||0)});
+      }
+      return res.json({status:"ok",database:"sqlite"});
+    } catch {
+      return res.status(503).json({status:"unavailable",database:postgres?"postgres":"sqlite"});
+    }
+  });
   app.post("/v1/auth/signup",authLimiter,async(req,res)=>{
     const {name,email,password}=req.body||{};
     if(typeof name!=="string"||name.trim().length<2||!validEmail(email)||typeof password!=="string"||password.length<10)return res.status(400).json({error:"Provide a name, valid email and password of at least 10 characters."});
