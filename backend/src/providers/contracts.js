@@ -15,6 +15,8 @@ export class EntitlementProvider {
 }
 export class PlaybackProvider {
   async createSession(userId, contentId) { throw new Error("PlaybackProvider.createSession not implemented"); }
+  async refreshSession(userId, sessionId) { throw new Error("PlaybackProvider.refreshSession not implemented"); }
+  async closeSession(userId, sessionId) { throw new Error("PlaybackProvider.closeSession not implemented"); }
 }
 
 // RWA-specific contracts are deliberately transport-agnostic. No endpoint,
