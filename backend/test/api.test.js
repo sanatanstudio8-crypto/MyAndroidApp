@@ -164,3 +164,28 @@ test("a created session without an HTTPS playback URL cannot be started",async()
   assert.equal(response.body.playbackUrl,undefined);
   db.close();
 });
+
+test("paginated catalogue snapshot preserves hierarchy, stable ordering and visibility",async()=>{
+  const {db,app}=fixture();
+  db.prepare("INSERT INTO subjects(id,name) VALUES(?,?)").run("batch-2","Batch B");
+  db.prepare("INSERT INTO subjects(id,name) VALUES(?,?)").run("batch-1","Batch A");
+  db.prepare("INSERT INTO courses(id,batch_id,title,visibility,created_at) VALUES(?,?,?,?,?)").run("course-1","batch-1","Course A","free",new Date().toISOString());
+  db.prepare("INSERT INTO courses(id,batch_id,title,visibility,created_at) VALUES(?,?,?,?,?)").run("course-2","batch-2","Course B","paid",new Date().toISOString());
+  db.prepare("INSERT INTO course_chapters(id,course_id,title,position) VALUES(?,?,?,?)").run("chapter-1","course-1","Chapter 1",1);
+  db.prepare("INSERT INTO lectures(id,chapter_id,title,lecture_type,visibility,created_at) VALUES(?,?,?,?,?,?)").run("lecture-1","chapter-1","Lecture 1","recorded","free",new Date().toISOString());
+  const first=await request(app).get("/v1/catalogue?page=1&pageSize=1").expect(200);
+  assert.equal(first.body.items.length,1);
+  assert.equal(first.body.items[0].id,"batch-1");
+  assert.equal(first.body.items[0].courses[0].id,"course-1");
+  assert.equal(first.body.items[0].courses[0].visibility,"free");
+  assert.equal(first.body.items[0].courses[0].chapters[0].id,"chapter-1");
+  assert.equal(first.body.items[0].courses[0].chapters[0].lectures[0].id,"lecture-1");
+  assert.equal(first.body.hasNextPage,true);
+  const second=await request(app).get("/v1/catalogue?page=2&pageSize=1").expect(200);
+  assert.equal(second.body.items[0].id,"batch-2");
+  assert.equal(second.body.items[0].courses[0].visibility,"paid");
+  assert.equal(second.body.hasNextPage,false);
+  await request(app).get("/v1/catalogue?page=0&pageSize=1").expect(400);
+  await request(app).get("/v1/catalogue?page=1&pageSize=101").expect(400);
+  db.close();
+});

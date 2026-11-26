@@ -4,6 +4,28 @@ import { CatalogueProvider, IdentityProvider, EntitlementProvider, PlaybackProvi
 
 export class PostgresCatalogueProvider extends CatalogueProvider {
   constructor(db) { super(); this.db = db; }
+  async listCataloguePage(page=1,pageSize=20) {
+    const offset=(page-1)*pageSize;
+    const count=await this.db.get("SELECT COUNT(*) AS total FROM subjects");
+    const total=Number(count.total);
+    const batches=await this.db.all("SELECT id,name AS title,name FROM subjects ORDER BY name,id LIMIT ? OFFSET ?",pageSize,offset);
+    const items=[];
+    for (const batch of batches) {
+      const courses=await this.db.all("SELECT id,title,description,visibility,batch_id AS \"batchId\" FROM courses WHERE batch_id=? ORDER BY title,id",batch.id);
+      const nestedCourses=[];
+      for (const course of courses) {
+        const chapters=await this.db.all("SELECT id,course_id AS \"courseId\",title,position FROM course_chapters WHERE course_id=? ORDER BY position,title,id",course.id);
+        const nestedChapters=[];
+        for (const chapter of chapters) {
+          const lectures=await this.db.all("SELECT id,chapter_id AS \"chapterId\",title,description,lecture_type AS type,visibility FROM lectures WHERE chapter_id=? AND lecture_type='recorded' ORDER BY title,id",chapter.id);
+          nestedChapters.push({...chapter,lectures});
+        }
+        nestedCourses.push({...course,chapters:nestedChapters});
+      }
+      items.push({...batch,courses:nestedCourses});
+    }
+    return {items,page,pageSize,totalItems:total,totalPages:Math.ceil(total/pageSize),hasNextPage:offset+items.length<total};
+  }
   listBatches() { return this.db.all("SELECT id,name AS title,name FROM subjects ORDER BY name"); }
   listCourses(batchId) { return batchId ? this.db.all("SELECT id,title,description,visibility,batch_id AS \"batchId\" FROM courses WHERE batch_id=? ORDER BY title", batchId) : this.db.all("SELECT id,title,description,visibility,batch_id AS \"batchId\" FROM courses ORDER BY title"); }
   getCourse(id) { return this.db.get("SELECT id,title,description,visibility,batch_id AS \"batchId\" FROM courses WHERE id=?", id).then(row => row ?? null); }

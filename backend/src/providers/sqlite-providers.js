@@ -4,6 +4,20 @@ import { CatalogueProvider, IdentityProvider, EntitlementProvider, PlaybackProvi
 
 export class SqliteCatalogueProvider extends CatalogueProvider {
   constructor(db) { super(); this.db = db; }
+  listCataloguePage(page=1,pageSize=20) {
+    const offset=(page-1)*pageSize;
+    const total=this.db.prepare("SELECT COUNT(*) AS total FROM subjects").get().total;
+    const batches=this.db.prepare("SELECT id,name AS title,name FROM subjects ORDER BY name,id LIMIT ? OFFSET ?").all(pageSize,offset);
+    const items=batches.map(batch=>{
+      const courses=this.db.prepare("SELECT id,title,description,visibility,batch_id AS batchId FROM courses WHERE batch_id=? ORDER BY title,id").all(batch.id);
+      const nestedCourses=courses.map(course=>{
+        const chapters=this.db.prepare("SELECT id,course_id AS courseId,title,position FROM course_chapters WHERE course_id=? ORDER BY position,title,id").all(course.id);
+        return {...course,chapters:chapters.map(chapter=>({...chapter,lectures:this.db.prepare("SELECT id,chapter_id AS chapterId,title,description,lecture_type AS type,visibility FROM lectures WHERE chapter_id=? AND lecture_type='recorded' ORDER BY title,id").all(chapter.id)}))};
+      });
+      return {...batch,courses:nestedCourses};
+    });
+    return {items,page,pageSize,totalItems:total,totalPages:Math.ceil(total/pageSize),hasNextPage:offset+items.length<total};
+  }
   listBatches() { return this.db.prepare("SELECT id,name AS title,name FROM subjects ORDER BY name").all(); }
   listCourses(batchId) {
     return this.db.prepare("SELECT id,title,description,visibility,batch_id AS batchId FROM courses WHERE (? IS NULL OR batch_id=?) ORDER BY title").all(batchId ?? null,batchId ?? null);

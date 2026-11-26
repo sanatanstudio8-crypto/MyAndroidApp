@@ -123,6 +123,21 @@ export function createApp({db, jwtSecret=process.env.JWT_SECRET, providers={}, d
       return res.json({liveClassId:req.params.liveClassId,status:"left",sessionClosed:left,source:"demo_only"});
     } catch(error){next(error);}
   });
+  app.get("/v1/catalogue",async(req,res,next)=>{
+    const page=Number(req.query.page??1), pageSize=Number(req.query.pageSize??20);
+    if(!Number.isInteger(page)||page<1||!Number.isInteger(pageSize)||pageSize<1||pageSize>100)
+      return res.status(400).json({error:"page must be >= 1 and pageSize must be between 1 and 100."});
+    try {
+      const hierarchy=await catalogue.listCataloguePage(page,pageSize);
+      const legacyRows=await dbAll(db,"SELECT id,title,subject,teacher,description,starts_at AS \"startsAt\",status,join_url AS \"joinUrl\",playback_url AS \"playbackUrl\",visibility,demo_access AS \"demoAccess\",chapter_id AS \"chapterId\",type FROM classes ORDER BY title,id");
+      const legacyLive=legacyRows.filter(row=>row.type==="live").map(row=>({...row,joinUrl:row.visibility==="free"?row.joinUrl:null,playbackUrl:null,demoAccess:Boolean(row.demoAccess)}));
+      const legacyRecorded=legacyRows.filter(row=>row.type==="recorded").map(row=>({...row,joinUrl:null,playbackUrl:null,demoAccess:Boolean(row.demoAccess)}));
+      const subjects=await dbAll(db,"SELECT DISTINCT id,name FROM subjects ORDER BY name,id");
+      const schedules=await dbAll(db,"SELECT s.id,s.class_id AS \"classId\",s.starts_at AS \"startsAt\",s.ends_at AS \"endsAt\" FROM schedules s JOIN classes c ON c.id=s.class_id ORDER BY s.starts_at,s.id");
+      const liveClasses=await catalogue.listLiveClasses();
+      return res.json({...hierarchy,liveClasses,legacyLive,legacyRecorded,subjects,schedules});
+    } catch(e){next(e);}
+  });
   app.get("/v1/batches",async(_req,res,next)=>{try{res.json(await catalogue.listBatches());}catch(e){next(e);}});
   app.get("/v1/courses",async(req,res,next)=>{try{res.json(await catalogue.listCourses(req.query.batchId));}catch(e){next(e);}});
   app.get("/v1/courses/:courseId",async(req,res,next)=>{try{const value=await catalogue.getCourse(req.params.courseId);return value?res.json(value):res.status(404).json({error:"Course not found."});}catch(e){next(e);}});
