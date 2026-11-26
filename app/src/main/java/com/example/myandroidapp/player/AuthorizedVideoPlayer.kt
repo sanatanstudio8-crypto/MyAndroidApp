@@ -84,8 +84,11 @@ fun AuthorizedVideoPlayer(
     }
 
     DisposableEffect(player) {
+        onDispose { player?.release() }
+    }
+
+    DisposableEffect(Unit) {
         onDispose {
-            player?.release()
             if (onCloseSession != null) scope.launch { runCatching { onCloseSession.invoke() } }
         }
     }
