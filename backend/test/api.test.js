@@ -195,7 +195,7 @@ test("controlled playback provider covers Free/Premium decisions and create-refr
   const sessions=new Map();
   const calls=[];
   const decisions=new Map([
-    ["free-lecture","granted"],["premium-lecture","granted"],
+    ["free-lecture","granted"],["premium-lecture","granted"],["revoked-after-create","granted"],
     ["denied-lecture","denied"],["unknown-lecture","unknown"],
     ["expired-lecture","expired"]
   ]);
@@ -250,14 +250,21 @@ test("controlled playback provider covers Free/Premium decisions and create-refr
     assert.equal(sessions.has(created.body.id),false);
   }
 
+  const revocable=await request(app).post("/v1/playback/sessions")
+    .set(auth).send({contentId:"revoked-after-create"}).expect(201);
+  decisions.set("revoked-after-create","denied");
+  const refreshDenied=await request(app).post("/v1/playback/sessions/"+revocable.body.id+"/refresh")
+    .set(auth).expect(403);
+  assert.equal(refreshDenied.body.entitlement.decision,"denied");
+
   for(const contentId of ["denied-lecture","unknown-lecture","expired-lecture"]) {
     const denied=await request(app).post("/v1/playback/sessions")
       .set(auth).send({contentId}).expect(403);
     assert.equal(denied.body.entitlement.decision,
       contentId==="denied-lecture"?"denied":contentId==="unknown-lecture"?"unknown":"expired");
   }
-  assert.equal(calls.filter(call=>call[0]==="create").length,2);
-  assert.equal(calls.filter(call=>call[0]==="refresh").length,2);
+  assert.equal(calls.filter(call=>call[0]==="create").length,3);
+  assert.equal(calls.filter(call=>call[0]==="refresh").length,3);
   assert.equal(calls.filter(call=>call[0]==="close").length,2);
   db.close();
 });
