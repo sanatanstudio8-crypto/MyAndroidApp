@@ -70,7 +70,7 @@ private val muted = Color(0xFFB8B4C7)
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setContent { PublicClassesApp() }
+        setContent { AuthenticationGate { PublicClassesApp() } }
     }
 }
 
